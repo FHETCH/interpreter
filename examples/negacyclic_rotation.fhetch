@@ -1,0 +1,100 @@
+// Example of negacyclic rotation using multiplication in NTT space
+
+// Constants
+prime q = (1 << 16) + 1;
+const ring_dimension: u32 = 16;
+const rou: u32 = 65529; // 2Nth root of unity where N is the ring dimension
+const ntt_order: Vector<u32,16> = [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15]; // bit-reverse order
+
+// Pre-computed polynomial to implement rotation by 1
+// NOTE: In a more realistic  example, one would likely want to store it in NTT form to save on NTT
+// operations. In this example, we keep it in ‘non-transformed’ form for simplicity.
+const poly_rotate_1: Vector<u32,16> = [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+def main() {
+    // Initialize the root of unity and NTT ordering to match the hardware implementation
+    initialize();
+
+    // Initial vector to be rotated
+    var message: Vector<u32,16> = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    // Rotate the vector (negacyclically) 32 times
+    // TODO: replace with a for loop with fixed number of iterations
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+    var message = rotate_by_1(message, q);
+    print(message);
+}
+
+def initialize() {
+    sr_set_rou(ring_dimension, q, rou); // Set the global root of unity for the modulus q
+    sr_set_ntt_order(ntt_order);
+}
+
+def rotate_by_1(message, q) {
+    var message_ntt = sr_NTT(message, q);
+    var poly_rotate_1_ntt = sr_NTT(poly_rotate_1, q);
+    var rotated_ntt = sr_mulp(message_ntt, poly_rotate_1_ntt, q);
+    return sr_iNTT(rotated_ntt, q);
+}

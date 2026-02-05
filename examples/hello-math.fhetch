@@ -1,0 +1,28 @@
+prime q = (1 << 7) - 1;
+
+/***
+ * Some constants that will be processed in this example
+ */
+const message: Vector<u32, 14> = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+const add_me: Vector<u32, 14> = [71, 99, 105, 104, 106, 38, 25, 111, 102, 104, 97, 88, 20, 123];
+const sub_me: Vector<u32, 14> = [62, 8, 29, 33, 11, 32, 102, 16, 25, 23, 30, 39, 107, 4];
+const mult_me: Vector<u32, 14> = [6, 126, 46, 0, 126, 33, 101, 126, 85, 63, 94, 6, 1, 1];
+
+def main() {
+    // You can use sr_addp and other baseline instructions:
+    var added = sr_addp(message, add_me, q);
+    write(added);
+
+    // You can call functions without forward declaration:
+    sub(message);
+
+    // The syntax sugar `expr (mod q)` is supported:
+    var multiplied = message * mult_me + add_me (mod q);
+    // var multiplied = sr_addp(sr_mulp(message, mult_me, q), add_me, q);
+    write(multiplied);
+}
+
+def sub(vec) {
+    var subtracted = sr_subp(message, sub_me, q);
+    write(subtracted);
+}

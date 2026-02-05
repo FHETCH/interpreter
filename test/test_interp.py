@@ -4,7 +4,7 @@ from interp import parser
 from interp.eval import eval_consts, eval_func
 from interp.fhetch_ast import ScalarLiteral
 from interp.validate import check_name_collision, check_globals_types
-
+import pytest
 
 @fixture
 def prog():
@@ -35,3 +35,17 @@ def test_eval_func():
     """)[0]
     result = eval_func(func, ScalarLiteral(1), global_env={})
     assert result == ScalarLiteral(1)
+    
+def test_type_verify():
+    func = parser.Function.parse_string(
+        """
+    def Fail(x) {
+        var message: Vector<u32, 14> = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+        var x = message + 4;
+        return x;
+    }
+    """
+    )[0]
+    expected_err_regex = "The operation: VectorLiteral \+ ScalarLiteral is not allowed"
+    with pytest.raises(Exception, match=expected_err_regex):
+        eval_func(func, ScalarLiteral(1), global_env={})

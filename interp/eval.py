@@ -19,6 +19,7 @@ def eval_expr(expr, env, global_env):
         case BinaryOperation(op, lhs, rhs):
             lhs = eval_expr(lhs, env, global_env)
             rhs = eval_expr(rhs, env, global_env)
+            verify_binary_op_types(lhs,rhs,op)
             match op:
                 case BinOp.Add:
                     return lhs + rhs
@@ -49,7 +50,26 @@ def eval_expr(expr, env, global_env):
         case other:
             raise NotImplementedError(other)
 
+def verify_binary_op_types(lhs, rhs, op):
 
+    l_type = "v" if isinstance(lhs, (VectorLiteral)) else "s"
+    r_type = "v" if isinstance(rhs, (VectorLiteral)) else "s"
+
+    # 2. Define the "Allow List"
+    # Format: {operator: {(lhs_type, rhs_type), ...}}
+    allowed_ops = {
+        BinOp.Add: {("s", "s"), ("v", "v")},
+        BinOp.Sub: {("s", "s"), ("v", "v")},
+        BinOp.Mul: {("s", "s"), ("v", "s"), ("s", "v"), ("v", "v")},
+        BinOp.Concat: {("v", "v")},
+        BinOp.Shl: {("s", "s")},
+        BinOp.Shr: {("s", "s")},
+    }
+
+    if (l_type, r_type) not in allowed_ops[op]:
+        #TODO: Custom exception
+        raise Exception(f"The operation: {type(lhs).__name__} {op} {type(rhs).__name__} is not allowed")
+    
 def eval_consts(prog):
     consts = {}
     for item in prog.items:

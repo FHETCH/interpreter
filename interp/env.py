@@ -1,6 +1,6 @@
 import sys
 
-from interp.fhetch_ast import Constant, ScalarLiteral, VectorLiteral
+from interp.fhetch_ast import Constant, ScalarLiteral, VectorLiteral, builtin_add, builtin_mul, builtin_sub
 
 def builtin_write(obj):
     match obj:
@@ -16,25 +16,7 @@ def builtin_write(obj):
             print(other)
 
 
-def builtin_add(lhs, rhs, q):
-    assert isinstance(lhs, VectorLiteral) and isinstance(rhs, VectorLiteral)
-    assert len(lhs.value) == len(rhs.value)
-    return (lhs + rhs) % q
 
-
-def builtin_sub(lhs, rhs, q):
-    assert isinstance(lhs, VectorLiteral) and isinstance(rhs, VectorLiteral)
-    assert len(lhs.value) == len(rhs.value)
-    return (lhs - rhs) % q
-
-
-def builtin_mul(lhs, rhs, q):
-    if isinstance(rhs, ScalarLiteral):
-        return lhs.mmuls(rhs, q)
-    elif isinstance(rhs, VectorLiteral):
-        return lhs.mmulv(rhs, q)
-    # integers??
-    return (lhs * rhs) % q
 
 
 def default_global():

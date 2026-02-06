@@ -1,5 +1,6 @@
 import sys
 
+from interp.fft import set_ft_decimal_precision, forward_ft, inverse_ft
 from interp.fhetch_ast import Constant, ScalarLiteral, VectorLiteral
 
 def builtin_write(obj):
@@ -37,10 +38,22 @@ def builtin_mul(lhs, rhs, q):
     return (lhs * rhs) % q
 
 
+def builtin_fft(data): 
+    return forward_ft(data)
+
+def builtin_ifft(data): 
+    return inverse_ft(data)
+
+def builtin_set_FT_precision(precision): 
+    return set_ft_decimal_precision(precision)
+
 def default_global():
     return {
         "write": builtin_write,
         "sr_addp": builtin_add,
         "sr_subp": builtin_sub,
         "sr_mulp": builtin_mul,
+        "sr_set_FT_Precision": builtin_set_FT_precision,
+        "sr_FT": builtin_fft,
+        "sr_IFT": builtin_ifft,
     }

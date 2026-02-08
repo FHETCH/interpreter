@@ -6,10 +6,6 @@ from numpy import argsort, array
 # Root of unity used for the NTT (if None, use the default from Sympy)
 ROOTS_UNITY = {}
 
-# Ordering for the NTT output and iNTT input
-NTT_ORDERING = {}
-INTT_ORDERING = {}
-
 def builtin_write(obj):
     match obj:
         case ScalarLiteral(x):
@@ -29,10 +25,12 @@ def builtin_print(obj):
         case ScalarLiteral(x):
             print(x, end='')
         case VectorLiteral(v):
+            sys.stdout.buffer.write(bytes(91))
+            print('[', end='')
             for x in v:
                 builtin_print(x)
                 print(', ', end='')
-            print()
+            print(']')
         case Constant(_, _, value):
             builtin_print(value)
         case other:
@@ -66,22 +64,13 @@ def builtin_set_rou(ring_dimension: ScalarLiteral, modulus: ScalarLiteral, rou: 
     ROOTS_UNITY[(ring_dimension.value, modulus.value)] = rou.value
     return
 
-def builtin_set_ntt_order(order: VectorLiteral):
-    """Set the NTT output order"""
-    ring_dimension = len(order.value)
-    NTT_ORDERING[ring_dimension] = array([x.value for x in order.value])
-    INTT_ORDERING[ring_dimension] = argsort(NTT_ORDERING[ring_dimension])
-    return
-
 def builtin_ntt(lhs: VectorLiteral, q: ScalarLiteral):
     assert isinstance(lhs, VectorLiteral)
-    return lhs.forward_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value), None),
-                              permutation=NTT_ORDERING.get(len(lhs.value), None))
+    return lhs.forward_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 def builtin_intt(lhs: VectorLiteral, q: ScalarLiteral):
     assert isinstance(lhs, VectorLiteral)
-    return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value), None),
-                              permutation=INTT_ORDERING.get(len(lhs.value), None))
+    return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 
 def default_global():
@@ -92,7 +81,6 @@ def default_global():
         "sr_subp": builtin_sub,
         "sr_mulp": builtin_mul,
         "sr_set_rou": builtin_set_rou,
-        "sr_set_ntt_order": builtin_set_ntt_order,
         "sr_NTT": builtin_ntt,
         "sr_iNTT": builtin_intt,
     }

@@ -3,7 +3,7 @@ from sympy.utilities.iterables import ibin, iterable
 from sympy.utilities.misc import as_int
 
 # Modified NTT function from Sympy
-def _number_theoretic_transform(seq, prime, rou=None, inverse=False):
+def _number_theoretic_transform(seq, prime, rou, inverse=False):
     """Utility function for the Number Theoretic Transform"""
 
     if not iterable(seq):
@@ -35,14 +35,9 @@ def _number_theoretic_transform(seq, prime, rou=None, inverse=False):
         if i < j:
             a[i], a[j] = a[j], a[i]
 
-    if rou is None:
-        pr = primitive_root(p)
-        rt = pow(pr, (p - 1) // n, p)
-    else:
-        rt = rou
-    
-    if inverse:
-        rt = pow(rt, p - 2, p)
+    # The root of unity to be effectively used should be the inverse if 
+    # computing an iNTT
+    rt = rou if not inverse else pow(rou, -1, p)
 
     w = [1]*(n // 2)
     for i in range(1, n // 2):

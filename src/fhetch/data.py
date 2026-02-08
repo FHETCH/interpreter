@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from math import prod
 
 import numpy as np
+from numpy import typing as npt
 
 from .ntt import _nb_theory_scratchpad, _number_theoretic_transform
 
@@ -103,41 +104,45 @@ class Vector:
 
 @dataclass
 class MRP:
-    values: dict[Scalar, Vector]
+    """
+    Multi-Residue Polynomial.
 
-    def add(self, other: MRP):
+    Note: this only supports primes of 32-bits, and unsigned arithmetic.
+    """
+    # Map each prime to the vector of values. We use 64-bits to support multiplication
+    # without extra casts.
+    values: dict[np.uint32, npt.NDArray[np.uint64]]
+
+    def __add__(self, other: MRP):
         assert set(self.values) == set(other.values)
         return MRP({
-            q: v1.add(other.values[q], q) for q, v1 in self.values.items()
+            q: (v1 + other.values[q]) % q for q, v1 in self.values.items()
         })
 
-    def sub(self, other: MRP):
+    def __sub__(self, other: MRP):
         assert set(self.values) == set(other.values)
         return MRP({
-            q: v1.sub(other.values[q], q) for q, v1 in self.values.items()
+            q: (v1 - other.values[q]) % q for q, v1 in self.values.items()
         })
 
-    def mul(self, other: MRP):
+    def __mul__(self, other: MRP):
         assert set(self.values) == set(other.values)
         return MRP({
-            q: v1.mul(other.values[q], q) for q, v1 in self.values.items()
+            q: (v1 * other.values[q]) % q for q, v1 in self.values.items()
         })
 
-    def extract_base(self, base: set[Scalar]):
+    def extract_base(self, base: set[np.uint32]):
         return MRP({q: self.values[q] for q in base})
 
-    def _reconstruct(self, exact: bool):
-        big_q = prod(q.value for q in self.values.keys())
-        shape = next(iter(self.values.values())).value.shape
+    def _reconstruct(self, exact: bool) -> Vector:
+        big_q = prod(int(q) for q in self.values.keys())
+        shape = next(iter(self.values.values())).shape
         result = Vector(np.zeros(shape=shape, dtype=object))
         for q, vec in self.values.items():
-            q_star = big_q // q.value
-            q_hat = Scalar(pow(q_star, -1, q.value))
-            print(f"{q_star=}")
-            print(f"{q_hat=}")
+            q_star = big_q // int(q)
+            q_hat = pow(q_star, -1, int(q))
             vec = intt(vec, q)
-            result += vec.mul(q_hat, Scalar(q)) * Scalar(q_star)
-            print(f"{result=}")
+            result += Vector(((vec * q_hat) % np.uint64(q)) * q_star)
         if exact:
             result.value %= big_q
         return result
@@ -147,10 +152,10 @@ class MRP:
         if common:
             raise ValueError("Cannot extend to base that is already part of the MRP", common)
 
-        dtype = next(iter(self.values.values())).value.dtype
+        dtype = next(iter(self.values.values())).dtype
         reconstructed = self._reconstruct(exact)
         new_base = {
-            q: ntt((reconstructed % q).astype(dtype), q)
+            q: ntt((reconstructed % q.value).astype(dtype), q)
             for q in base
         }
         return MRP(self.values | new_base)

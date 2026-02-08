@@ -25,7 +25,6 @@ def builtin_print(obj):
         case ScalarLiteral(x):
             print(x, end='')
         case VectorLiteral(v):
-            sys.stdout.buffer.write(bytes(91))
             print('[', end='')
             for x in v:
                 builtin_print(x)

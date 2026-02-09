@@ -1,7 +1,6 @@
 import sys
 
-from interp.fhetch_ast import Constant, ScalarLiteral, VectorLiteral
-from numpy import argsort, array
+from .fhetch_ast import Constant, ScalarLiteral, VectorLiteral
 
 # Root of unity used for the NTT (if None, use the default from Sympy)
 ROOTS_UNITY = {}

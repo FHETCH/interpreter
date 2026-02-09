@@ -1,7 +1,7 @@
 from inspect import isfunction
 
-from interp.env import default_global
-from interp.fhetch_ast import Constant, BinaryOperation, BinOp, VectorLiteral, UnaryOperation, ScalarLiteral, VarAccess, \
+from .env import default_global
+from .fhetch_ast import Constant, BinaryOperation, BinOp, VectorLiteral, UnaryOperation, ScalarLiteral, VarAccess, \
     VarDefinition, Return, FunctionCall, CallStatement, Function
 
 

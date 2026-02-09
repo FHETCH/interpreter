@@ -1,4 +1,4 @@
-from interp.fhetch_ast import Function, VarDefinition, VarAccess, ScalarLiteral, BinaryOperation, VectorLiteral, \
+from .fhetch_ast import Function, VarDefinition, VarAccess, ScalarLiteral, BinaryOperation, VectorLiteral, \
     FunctionCall, BinOp
 
 

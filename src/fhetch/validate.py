@@ -1,4 +1,4 @@
-from interp.fhetch_ast import Constant, ScalarLiteral, VectorLiteral, Function, Return
+from .fhetch_ast import Constant, ScalarLiteral, VectorLiteral, Function, Return
 
 
 def check_name_collision(prog):

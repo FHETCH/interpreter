@@ -1,14 +1,16 @@
 from inspect import isfunction
 
-from .env import default_global
+import numpy as np
+
+from .data import Vector, Scalar
 from .fhetch_ast import Constant, BinaryOperation, BinOp, VectorLiteral, UnaryOperation, ScalarLiteral, VarAccess, \
-    VarDefinition, Return, FunctionCall, CallStatement, Function
+    VarDefinition, Return, FunctionCall, CallStatement
 
 
 def eval_expr(expr, env, global_env):
     match expr:
-        case ScalarLiteral(_):
-            return expr
+        case ScalarLiteral(value):
+            return Scalar(value)
         case VarAccess(var):
             if var in env:
                 return env[var]
@@ -27,11 +29,11 @@ def eval_expr(expr, env, global_env):
                 case BinOp.Mul:
                     return lhs * rhs
                 case BinOp.Concat:
-                    assert isinstance(lhs, VectorLiteral) and isinstance(rhs, VectorLiteral)
-                    return VectorLiteral(lhs.value + rhs.value)
+                    assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
+                    return Vector(np.concatenate((lhs.value, rhs.value)))
                 case BinOp.Shl:
-                    assert isinstance(lhs, ScalarLiteral) and isinstance(rhs, ScalarLiteral)
-                    return ScalarLiteral(lhs.value << rhs.value)
+                    assert isinstance(lhs, Scalar) and isinstance(rhs, Scalar)
+                    return Scalar(lhs.value << rhs.value)
                 case other:
                     raise NotImplementedError(other)
         case UnaryOperation(operation, operand):
@@ -45,16 +47,24 @@ def eval_expr(expr, env, global_env):
             args = [eval_expr(expr, env, global_env) for expr in args]
             return eval_func(func, *args, global_env=global_env)
         case VectorLiteral(vec):
-            return VectorLiteral([eval_expr(sub_expr, env, global_env) for sub_expr in vec])
+            value = [eval_expr(sub_expr, env, global_env) for sub_expr in vec]
+            if all(isinstance(elem, Scalar) for elem in value):
+                value = np.array([elem.value for elem in value], dtype=np.uint64)
+            else:
+                value = np.array(value, dtype=object)
+            return Vector(value)
         case other:
             raise NotImplementedError(other)
 
 
-def eval_consts(prog):
-    consts = {}
+def eval_globals(prog):
+    globals = {}
     for item in prog.items:
         if isinstance(item, Constant):
-            consts[item.name] = item.value = eval_expr(item.value, env={}, global_env=consts)
+            globals[item.name] = eval_expr(item.value, env={}, global_env=globals)
+        else:
+            globals[item.name] = item
+    return globals
 
 
 def eval_func(func, *args, global_env):
@@ -78,7 +88,5 @@ def eval_func(func, *args, global_env):
     return None
 
 
-def eval_main(prog):
-    global_env = default_global()
-    global_env.update({item.name: item if isinstance(item, Function) else item.value for item in prog.items})
+def eval_main(prog, global_env):
     eval_func(prog.get("main"), global_env=global_env)

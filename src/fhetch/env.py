@@ -1,17 +1,24 @@
 import sys
 
-from .fhetch_ast import Constant, ScalarLiteral, VectorLiteral
+import numpy as np
+
+from .data import Scalar, Vector
+from .fhetch_ast import Constant
 
 # Root of unity used for the NTT (if None, use the default from Sympy)
 ROOTS_UNITY = {}
 
 def builtin_write(obj):
     match obj:
-        case ScalarLiteral(x):
-            sys.stdout.buffer.write(x.to_bytes(4, "little"))
-        case VectorLiteral(v):
-            for x in v:
-                builtin_write(x)
+        case Scalar(x):
+            sys.stdout.buffer.write(int(x).to_bytes(4, "little"))
+        case Vector(v):
+            if v.dtype.kind in ('u', 'i'):
+                # optimization for vectors of scalars
+                sys.stdout.buffer.write(v.astype(np.int32).tobytes())
+            else:
+                for x in v:
+                    builtin_write(x)
         case Constant(_, _, value):
             builtin_write(value)
         case other:
@@ -21,9 +28,9 @@ def builtin_write(obj):
 
 def builtin_print(obj):
     match obj:
-        case ScalarLiteral(x):
+        case Scalar(x):
             print(x, end='')
-        case VectorLiteral(v):
+        case Vector(v):
             print('[', end='')
             for x in v:
                 builtin_print(x)
@@ -37,37 +44,32 @@ def builtin_print(obj):
 
 
 def builtin_add(lhs, rhs, q):
-    assert isinstance(lhs, VectorLiteral) and isinstance(rhs, VectorLiteral)
+    assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
     assert len(lhs.value) == len(rhs.value)
-    return (lhs + rhs) % q
+    return lhs.add(rhs, q.value)
 
 
 def builtin_sub(lhs, rhs, q):
-    assert isinstance(lhs, VectorLiteral) and isinstance(rhs, VectorLiteral)
+    assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
     assert len(lhs.value) == len(rhs.value)
-    return (lhs - rhs) % q
+    return lhs.sub(rhs, q.value)
 
 
 def builtin_mul(lhs, rhs, q):
-    if isinstance(rhs, ScalarLiteral):
-        return lhs.mmuls(rhs, q)
-    elif isinstance(rhs, VectorLiteral):
-        return lhs.mmulv(rhs, q)
-    # integers??
-    return (lhs * rhs) % q
+    return lhs.mul(rhs, q.value)
 
-def builtin_set_rou(ring_dimension: ScalarLiteral, modulus: ScalarLiteral, rou: ScalarLiteral):
+def builtin_set_rou(ring_dimension: Scalar, modulus: Scalar, rou: Scalar):
     """Set the global root of unity for this modulus"""
     assert ring_dimension.value > 0
     ROOTS_UNITY[(ring_dimension.value, modulus.value)] = rou.value
     return
 
-def builtin_ntt(lhs: VectorLiteral, q: ScalarLiteral):
-    assert isinstance(lhs, VectorLiteral)
+def builtin_ntt(lhs: Vector, q: Scalar):
+    assert isinstance(lhs, Vector)
     return lhs.forward_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
-def builtin_intt(lhs: VectorLiteral, q: ScalarLiteral):
-    assert isinstance(lhs, VectorLiteral)
+def builtin_intt(lhs: Vector, q: Scalar):
+    assert isinstance(lhs, Vector)
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 

@@ -7,6 +7,8 @@ from math import prod
 
 import numpy as np
 
+from .ntt import _nb_theory_scratchpad, _number_theoretic_transform
+
 
 def modulo(x, q):
     x %= q
@@ -17,8 +19,19 @@ def modulo(x, q):
 
 @dataclass(frozen=True)
 class Scalar:
-    # Use 64-bits exclusively to ensure that there are no 32-bit overflows.
-    value: np.int64 | np.uint64
+    value: int
+
+    def __add__(self, other):
+        return Scalar(self.value + other.value)
+
+    def __sub__(self, other):
+        return Scalar(self.value - other.value)
+
+    def __mul__(self, other):
+        return Scalar(self.value * other.value)
+
+    def __mod__(self, q):
+        return Scalar(self.value % q.value)
 
     def add(self, other, q):
         return Scalar(modulo(self.value + other.value, q.value))
@@ -46,16 +59,43 @@ class Vector:
     def __mod__(self, other):
         if isinstance(other, Scalar):
             other = other.value
-        return Vector(modulo(self.value, other).astype(other.dtype))
+        return Vector(modulo(self.value, other))
+
+    def __iter__(self):
+        return iter(self.value)
 
     def add(self, other, q):
         return (self + other) % q
 
     def sub(self, other, q):
-        return (self - other) % q
+        underflow = self.value < other.value
+        result = (self.value - other.value) + underflow.astype(self.value.dtype) * q
+        return Vector(result % q)
 
     def mul(self, other, q):
         return (self * other) % q
+
+    def forward_ntt(self, q, rou):
+        """Forward NTT function"""
+        q = q.value
+        rou2 = (rou * rou) % q
+        coefficients = self.value.tolist()
+        prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou=rou)
+        for (i, coefficient) in enumerate(coefficients[1:]):
+            coefficients[i + 1] = (prefactors[i + 1] * coefficient) % q
+        coefficients_ntt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=False)
+        return Vector(np.array(coefficients_ntt, dtype=self.value.dtype))
+
+    def inverse_ntt(self, q, rou):
+        """Inverse NTT function"""
+        q = q.value
+        rou2 = (rou * rou) % q
+        coefficients = self.value.tolist()
+        coefficients_intt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=True)
+        prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou)
+        for (i, coefficient) in enumerate(coefficients_intt[1:]):
+            coefficients_intt[i + 1] = (prefactors[2 * len(coefficients) - i - 1] * coefficient) % q
+        return Vector(np.array(coefficients_intt, dtype=self.value.dtype))
 
 
 @dataclass

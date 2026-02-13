@@ -1,9 +1,9 @@
 from pytest import fixture
 
-from interp import parser
-from interp.eval import eval_consts, eval_func
-from interp.fhetch_ast import ScalarLiteral
-from interp.validate import check_name_collision, check_globals_types
+from fhetch import parser
+from fhetch.eval import eval_consts, eval_func
+from fhetch.fhetch_ast import ScalarLiteral
+from fhetch.validate import check_name_collision, check_globals_types
 
 
 @fixture

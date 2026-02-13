@@ -1,0 +1,26 @@
+[project]
+name = "fhetch"
+version = "0.1.0"
+description = "Interpreter for the FHETCH language"
+readme = "README.md"
+authors = [
+    { name = "Florent Michel", email = "florent.michel@optalysys.com" },
+    { name = "Noam Kleinburd", email = "noamk@chain-reaction.io" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.4.2",
+    "pyparsing>=3.3.2",
+    "pytest>=9.0.2",
+    "sympy>=1.14.0",
+]
+
+[project.scripts]
+fhetch = "fhetch.main:main"
+
+[project.urls]
+Homepage = "https://fhetch.org/"
+
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"

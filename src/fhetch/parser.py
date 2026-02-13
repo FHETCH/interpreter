@@ -2,7 +2,7 @@ from pyparsing import pyparsing_common as ppc, Word, Suppress, Keyword, one_of, 
     OpAssoc, DelimitedList, Forward, hexnums, Literal, Optional, Group, cStyleComment, cppStyleComment, \
     ParserElement
 
-from interp import fhetch_ast as ast
+from . import fhetch_ast as ast
 
 ParserElement.enablePackrat()
 

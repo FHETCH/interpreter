@@ -1,11 +1,8 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from numpy import array
 from typing import Optional
-from sympy import ntt, intt
-from sympy.ntheory.residue_ntheory import nthroot_mod
 
-from ntt import _number_theoretic_transform
+from .ntt import _number_theoretic_transform
 
 def _eval_const_scalar(parse_result):
     match parse_result:

@@ -1,6 +1,34 @@
-from sympy.ntheory import isprime, primitive_root
+from sympy.ntheory import isprime
 from sympy.utilities.iterables import ibin, iterable
 from sympy.utilities.misc import as_int
+
+
+# Scratchpad to store powers of roots of unity
+#
+# NOTE: This implementation assumes the root of unity is set the first time an (i)NTT is called
+# for a given size and modulus. The same root is re-used for all subsequent (i)NTTs with the same
+# dimension and modulus.
+class _NbTheoryScratchpad:
+
+    def __init__(self):
+        self.powers_rou = {}
+
+    def add_powers_rou(self, modulus: int, ring_dimension: int, rou: int):
+        w = 1
+        powers = [w]
+        for i in range(1, 2 * ring_dimension):
+            w = (w * rou) % modulus
+            powers.append(w)
+        self.powers_rou[(modulus, ring_dimension)] = powers
+
+    def get_powers_rou(self, modulus: int, ring_dimension: int, rou: int):
+        if not (modulus, ring_dimension) in self.powers_rou:
+            self.add_powers_rou(modulus, ring_dimension, rou=rou)
+        return self.powers_rou[(modulus, ring_dimension)]
+
+
+_nb_theory_scratchpad = _NbTheoryScratchpad()
+
 
 # Modified NTT function from Sympy
 def _number_theoretic_transform(seq, prime, rou, inverse=False):

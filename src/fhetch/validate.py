@@ -1,4 +1,7 @@
-from .fhetch_ast import Constant, ScalarLiteral, VectorLiteral, Function, Return
+import numpy as np
+
+from .data import Scalar, Vector
+from .fhetch_ast import Constant, Function, Return
 
 
 def check_name_collision(prog):
@@ -9,18 +12,21 @@ def check_name_collision(prog):
         seen_names.add(item.name)
 
 
-def check_globals_types(prog):
+def check_globals_types(prog, global_env):
     for item in prog.items:
         if not isinstance(item, Constant):
             continue
-        if item.type == "prime" and not isinstance(item.value, ScalarLiteral):
-            raise ValueError("Prime must be a scalar, got", item.value)
+        if item.type == "prime":
+            prime = global_env[item.name]
+            if not isinstance(prime, Scalar):
+                raise ValueError("Prime must be a scalar, got", prime)
         elif item.type == "primes":
-            if not isinstance(item.value, VectorLiteral):
-                raise ValueError("Primes must be a vector, got", item.value)
-            for expr in item.value:
-                if not isinstance(expr, ScalarLiteral):
-                    raise ValueError("Primes must contain scalars, got", expr)
+            primes = global_env[item.name]
+            if not isinstance(primes, Vector):
+                raise ValueError("Primes must be a vector, got", primes)
+            for prime in primes:
+                if not isinstance(prime, (Scalar, np.uint64)):
+                    raise ValueError("Primes must contain scalars, got", prime)
 
 
 def check_all_funcs_return_once(prog):
@@ -31,7 +37,7 @@ def check_all_funcs_return_once(prog):
             raise ValueError("Multiple return statements in function", item)
 
 
-def validate_all(prog):
+def validate_all(prog, global_env):
     check_name_collision(prog)
-    check_globals_types(prog)
+    check_globals_types(prog, global_env)
     check_all_funcs_return_once(prog)

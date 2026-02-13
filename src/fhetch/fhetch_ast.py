@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Optional
 
-from .ntt import _number_theoretic_transform
 
 def _eval_const_scalar(parse_result):
     match parse_result:
@@ -142,56 +141,10 @@ class ScalarLiteral(Expression):
     def __repr__(self):
         return repr(self.value)
 
-    def __add__(self, other):
-        return ScalarLiteral(self.value + other.value)
-
-    def __sub__(self, other):
-        return ScalarLiteral(self.value - other.value)
-
-    def __mul__(self, other):
-        return ScalarLiteral(self.value * other.value)
-
-    def __mod__(self, q):
-        return ScalarLiteral(self.value % q.value)
-
-    def mmuls(self, other, q):
-        """Modular multiplication with Scalar."""
-        return (self * other) % q
-
-    def mmulv(self, other, q):
-        """Modular multiplication with Vector (element-wise)."""
-        return other.mmuls(self, q)
-
-
-# Scratchpad to store powers of roots of unity
-# 
-# NOTE: This implementation assumes the root of unity is set the first time an (i)NTT is called 
-# for a given size and modulus. The same root is re-used for all subsequent (i)NTTs with the same 
-# dimension and modulus.
-class _NbTheoryScratchpad:
-    
-    def __init__(self):
-        self.powers_rou = {}
-    
-    def add_powers_rou(self, modulus: int, ring_dimension: int, rou: int):
-        w = 1
-        powers = [w]
-        for i in range(1, 2*ring_dimension):
-            w = (w * rou) % modulus
-            powers.append(w)
-        self.powers_rou[(modulus, ring_dimension)] = powers
-
-    def get_powers_rou(self, modulus: int, ring_dimension: int, rou: int):
-        if not (modulus, ring_dimension) in self.powers_rou: 
-            self.add_powers_rou(modulus, ring_dimension, rou=rou)
-        return self.powers_rou[(modulus, ring_dimension)]
-
-_nb_theory_scratchpad = _NbTheoryScratchpad()
-
 
 @dataclass
 class VectorLiteral(Expression):
-    value: list[int]
+    value: list[Expression]
 
     def __repr__(self):
         return repr(self.value)
@@ -202,44 +155,6 @@ class VectorLiteral(Expression):
     def __iter__(self):
         return iter(self.value)
 
-    def __add__(self, other):
-        return VectorLiteral([a + b for a, b in zip(self.value, other.value)])
-
-    def __sub__(self, other):
-        return VectorLiteral([a - b for a, b in zip(self.value, other.value)])
-
-    def __mod__(self, q):
-        return VectorLiteral([a % q for a in self.value])
-
-    def mmuls(self, other, q):
-        """Modular multiplication with Scalar."""
-        return VectorLiteral([(a * other) % q for a in self.value])
-
-    def mmulv(self, other, q):
-        """Modular multiplication with Vector (element-wise)."""
-        return VectorLiteral([(a * b) % q for a, b in zip(self.value, other.value)])
-    
-    def forward_ntt(self, q, rou):
-        """Forward NTT function"""
-        q = q.value
-        rou2 = (rou*rou)%q
-        coefficients = [x.value for x in self.value]
-        prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou=rou)
-        for (i,coefficient) in enumerate(coefficients[1:]):
-            coefficients[i+1] = (prefactors[i+1] * coefficient) % q
-        coefficients_ntt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=False)
-        return VectorLiteral(list(map(ScalarLiteral, coefficients_ntt)))
-    
-    def inverse_ntt(self, q, rou):
-        """Inverse NTT function"""
-        q = q.value
-        rou2 = (rou*rou)%q
-        coefficients = [self.value[i].value for i in range(len(self.value))]
-        coefficients_intt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=True)
-        prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou)
-        for (i,coefficient) in enumerate(coefficients_intt[1:]):
-            coefficients_intt[i+1] = (prefactors[2*len(coefficients)-i-1] * coefficient) % q
-        return VectorLiteral(list(map(ScalarLiteral, coefficients_intt)))
 
 @dataclass
 class VarDefinition(Instruction):

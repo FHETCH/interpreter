@@ -1,8 +1,8 @@
 from pytest import fixture
 
 from fhetch import parser
-from fhetch.eval import eval_consts, eval_func
-from fhetch.fhetch_ast import ScalarLiteral
+from fhetch.data import Scalar
+from fhetch.eval import eval_globals, eval_func
 from fhetch.validate import check_name_collision, check_globals_types
 
 
@@ -15,14 +15,13 @@ def test_parse(prog):
 
 
 def test_eval_consts(prog):
-    eval_consts(prog)
-    print(prog)
+    print(eval_globals(prog))
 
 
 def test_validate(prog):
     check_name_collision(prog)
-    eval_consts(prog)
-    check_globals_types(prog)
+    global_env = eval_globals(prog)
+    check_globals_types(prog, global_env)
 
 
 def test_eval_func():
@@ -33,5 +32,5 @@ def test_eval_func():
         return T4;
     }
     """)[0]
-    result = eval_func(func, ScalarLiteral(1), global_env={})
-    assert result == ScalarLiteral(1)
+    result = eval_func(func, Scalar(1), global_env={})
+    assert result == Scalar(1)

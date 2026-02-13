@@ -19,6 +19,8 @@ def modulo(x, q):
 
 @dataclass(frozen=True)
 class Scalar:
+    # We use Python's arbitrary precision int for scalars in order to allow
+    # arbitrary computations to produce primes.
     value: int
 
     def __add__(self, other):
@@ -68,6 +70,7 @@ class Vector:
         return (self + other) % q
 
     def sub(self, other, q):
+        # TODO: signed arithmetic needs different logic for underflows
         underflow = self.value < other.value
         result = (self.value - other.value) + underflow.astype(self.value.dtype) * q
         return Vector(result % q)

@@ -7,6 +7,7 @@ from interp.fhetch_ast import (
     BinOp,
     ScalarType,
     VecType,
+    MRPType,
     VectorLiteral,
     UnaryOperation,
     ScalarLiteral,
@@ -20,8 +21,8 @@ from interp.fhetch_ast import (
 from interp.parser import VectorType
 
 
-MAX_U32 = 1 << 32 - 1
-MAX_U64 = 1 << 64 - 1
+MAX_U32 = (1 << 32) - 1
+MAX_U64 = (1 << 64) - 1
 MAX_I32 = (1 << 31) - 1
 MAX_I64 = (1 << 63) - 1
 MIN_I32 = -(1 << 31)
@@ -52,36 +53,80 @@ def verify_binary_op_types(lhs, rhs, op):
 
 
 # TODO: can be moved inside ScalarLiteral as a method
-def verify_scalar_type(expr: ScalarLiteral, type: ScalarType):
-    val = expr.value
-    if val < 0 and type in {ScalarType.U32, ScalarType.U64}:
-        raise Exception("cannot assign negative values to unsigned variables")
-    if type is ScalarType.U32 and val > MAX_U32:
-        raise Exception("{val} is out of U32 bounds")
-    if type is ScalarType.U64 and val > MAX_U64:
-        raise Exception("{val} is out of U64 bounds")
+def verify_literal_type(expr: ScalarLiteral|VectorLiteral, type: ScalarType|VecType|MRPType):
+    if isinstance(type, MRPType):
+        return
+        # # MRP type is a vector with specific scalar type, length, and modulus
+        # # First verify it as a vector with the MRP's inner type
+        # vec_type = VecType(type.scalar, type.length)
+        # verify_literal_type(expr, vec_type)
+        # # The modulus constraint is handled separately during evaluation
+        # return
+    
+    if isinstance(expr, ScalarLiteral):
+        val = expr.value
+        if val < 0 and type in {ScalarType.U32, ScalarType.U64}:
+            raise Exception("cannot assign negative values to unsigned variables")
+        if type is ScalarType.U32 and val > MAX_U32:
+            raise Exception(f"{val} is out of U32 bounds")
+        if type is ScalarType.U64 and val > MAX_U64:
+            raise Exception(f"{val} is out of U64 bounds")
 
-    # 32-bit Signed check
-    if type is ScalarType.I32:
-        if not (MIN_I32 <= val <= MAX_I32):
-            raise ValueError(f"{val} is out of I32 bounds")
+        # 32-bit Signed check
+        if type is ScalarType.I32:
+            if not (MIN_I32 <= val <= MAX_I32):
+                raise ValueError(f"{val} is out of I32 bounds")
 
-    # 64-bit Signed check
-    if type is ScalarType.I64:
-        if not (MIN_I64 <= val <= MAX_I64):
-            raise ValueError(f"{val} is out of I64 bounds")
+        # 64-bit Signed check
+        if type is ScalarType.I64:
+            if not (MIN_I64 <= val <= MAX_I64):
+                raise ValueError(f"{val} is out of I64 bounds")
+    else:
+        for element in expr.value:
+            verify_literal_type(element, type.inner)
+            element.type = type.inner
+                
+        
+    
 
 
 def determine_literal_type(expr: ScalarLiteral | VectorLiteral) -> ScalarType | VecType:
     if isinstance(expr, ScalarLiteral):
-        if expr < 0:
-            return ScalarType.I32 if MIN_I32 < expr.value < MAX_I32 else ScalarType.I64
-        return ScalarType.U32 if expr.value < MAX_U32 else ScalarType.U64
+        val = expr.value
+        if val < 0:
+            return ScalarType.I32 if MIN_I32 <= val <= MAX_I32 else ScalarType.I64
+        return ScalarType.U32 if val <= MAX_U32 else ScalarType.U64
+    
+    # For VectorLiteral, recursively determine inner type
     vec = expr.value
-    largest = max(abs(max(vec)), abs(min(vec)))
-    if any(x < 0 for x in vec):
-        return ScalarType.I32 if largest < MAX_I32 else ScalarType.I64
-    return ScalarType.U32 if largest < MAX_U32 else ScalarType.U64
+    if len(vec) == 0:
+        # Empty vector, default to U32
+        return VecType(ScalarType.U32, 0)
+    
+    # Check if elements are nested vectors or scalars
+    first_element = vec[0]
+    if isinstance(first_element, VectorLiteral):
+        # Nested vector: recursively determine inner type
+        inner_type = determine_literal_type(first_element)
+        return VecType(inner_type, len(vec))
+    elif isinstance(first_element, ScalarLiteral):
+        # Vector of scalars: determine scalar type based on all values
+        all_values = [elem.value for elem in vec]
+        largest = max(abs(max(all_values)), abs(min(all_values)))
+        if any(x < 0 for x in all_values):
+            inner_type = ScalarType.I32 if largest <= MAX_I32 else ScalarType.I64
+        else:
+            inner_type = ScalarType.U32 if largest <= MAX_U32 else ScalarType.U64
+        return VecType(inner_type, len(vec))
+    else:
+        # Fallback for plain int values (shouldn't happen in normal flow)
+        all_values = [elem if isinstance(elem, int) else elem.value for elem in vec]
+        largest = max(abs(max(all_values)), abs(min(all_values)))
+        if any(x < 0 for x in all_values):
+            inner_type = ScalarType.I32 if largest <= MAX_I32 else ScalarType.I64
+        else:
+            inner_type = ScalarType.U32 if largest <= MAX_U32 else ScalarType.U64
+        return VecType(inner_type, len(vec))
 
 
 def eval_expr(expr, env, global_env):
@@ -162,11 +207,11 @@ def eval_func(func, *args, global_env):
         match statement:
             case VarDefinition(name, type, expr):
                 res = eval_expr(expr, env, global_env)
-                # if type:
-                #     verify_scalar_type(res, type)
-                # else:
-                #     type = determine_literal_type(res)
-                # res.type = type
+                if type:
+                    verify_literal_type(res, type)
+                else:
+                    type = determine_literal_type(res)
+                res.type = type
                 env[name] = res
             case CallStatement(call):
                 eval_expr(call, env, global_env)

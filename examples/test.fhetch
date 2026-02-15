@@ -8,23 +8,18 @@ def main() {
     // var y2:i32 = 4;
     //f(y1);
     // var t = x1+x1;
-    var a = [0, 1, 2, 3];
-    var b = [7, 8 ,9, 10];
-
+    var a:Vector<u32,4> = [0, 1, 2, 3] ;
+    var b = [7, 8 ,9, -10];
+    
     var abc = [a, b] * [4, 3] (mod q);
-
-    // var x = [1,2,3];
-    // var y = [1,2,3];
-
-
-
-    // var v1 = x+y;
-    // write(v1);
+    //f(a);
+    var x :MRP<u32,2,q> =[a,b];
+    var y = [a, b] (mod q);
     write(abc);
 }
 
-def f(v:Vector<u32,4>) {
-    write(x);
+def f(v:Vector<Vector<u32,4>,2>) {
+    write(v);
 }
 
 

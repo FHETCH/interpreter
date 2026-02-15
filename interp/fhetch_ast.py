@@ -61,25 +61,31 @@ def verify_vectors_size(lhs: VectorLiteral, rhs: VectorLiteral):
             raise Exception("vector size mismatch")
 
 
+
 def verify_literal_types(
     lhs: VectorLiteral | ScalarLiteral, rhs: VectorLiteral | ScalarLiteral
 ):
-    # if isinstance(lhs, VectorLiteral):
-    #     lhs_type = lhs.inner_type
-    # else:
-    #     lhs_type = lhs.type
+    """
+    Verify that the types of two literals are compatible.
+    
+    Note: This function assumes that vectors passed here are 1-dimensional (flat).
+    """
+    if isinstance(lhs, VectorLiteral):
+        lhs_type = lhs.type.inner
+    else:
+        lhs_type = lhs.type
 
-    # if isinstance(rhs, VectorLiteral):
-    #     rhs_type = rhs.inner_type
-    # else:
-    #     rhs_type = rhs.type
+    if isinstance(rhs, VectorLiteral):
+        rhs_type = rhs.type.inner
+    else:
+        rhs_type = rhs.type
 
-    # if (
-    #     lhs_type != None
-    #     and rhs_type != None
-    #     and lhs_type != rhs_type
-    # ):
-    #     raise Exception("type mismatch")
+    if (
+        lhs_type != None
+        and rhs_type != None
+        and lhs_type != rhs_type
+    ):
+        raise TypeError(f"Type mismatch: cannot perform operation between {lhs_type} and {rhs_type}")
     pass
 
 
@@ -108,11 +114,16 @@ class ScalarType(Type, StrEnum):
 
 @dataclass
 class VecType(Type):
-    inner: Type
+    inner: ScalarType|VecType
     length: int
 
     def __repr__(self):
         return f"Vector<{self.inner}, {self.length}>"
+    
+    def __eq__(self, other):
+        if not isinstance(other, VecType):
+            return False
+        return self.inner == other.inner and self.length == other.length
 
 
 @dataclass
@@ -224,7 +235,7 @@ class ScalarLiteral(Expression):
 
 @dataclass
 class VectorLiteral(Expression):
-    value: list[int|VectorLiteral]
+    value: list[ScalarLiteral|VectorLiteral|int]
     type: VecType = None
 
     def __repr__(self):
@@ -258,7 +269,7 @@ class VectorLiteral(Expression):
         verify_literal_types(self, other)
         
         # TODO: self.type.inner is ScalarType
-        if self.value[0] is int:    
+        if isinstance(self.value[0], ScalarLiteral):   
             return VectorLiteral([(a * other) % q for a in self.value])
         
         #TODO: recursive type building
@@ -267,8 +278,8 @@ class VectorLiteral(Expression):
     def mmulv(self, other:VectorLiteral, q):
         """Modular multiplication with Vector (element-wise)."""
         #verify_vectors_size(self, other)
-        verify_literal_types(self, other)
-        if self.value[0] is int and other.value[0] is int:
+        if isinstance(self.value[0], ScalarLiteral) and isinstance(other[0], ScalarLiteral):
+            verify_literal_types(self, other)
             return VectorLiteral([(a * other) % q for a in self.value])
         return VectorLiteral([builtin_mul(a, b, q) % q for a, b in zip(self.value, other.value)])
 
@@ -278,7 +289,7 @@ class VarDefinition(Instruction):
     var_name: str
     type: Optional[ScalarType | VecType | MRPType]
     definition: Expression
-    modulus: Optional[VarAccess | int] = None
+    modulus: Optional[VarAccess | ScalarLiteral] = None
 
     @classmethod
     def from_tokens(cls, *tokens):
@@ -287,14 +298,14 @@ class VarDefinition(Instruction):
                 return cls(name, None, expr)
             case (str(name), expr, str(q)):
                 return cls(name, None, expr, VarAccess(q))
-            case (str(name), expr, int(q)):
-                return cls(name, None, expr, q)
+            case (str(name), expr, ScalarLiteral(q)):
+                return cls(name, None, expr, ScalarLiteral(q))
             case (str(name), ty, expr):
                 return cls(name, ty, expr)
             case (str(name), ty, expr, str(q)):
                 return cls(name, ty, expr, VarAccess(q))
-            case (str(name), ty, expr, int(q)):
-                return cls(name, ty, expr, q)
+            case (str(name), ty, expr, ScalarLiteral(q)):
+                return cls(name, ty, expr, ScalarLiteral(q))
             case other:
                 raise TypeError("Cannot construct VarDefinition from", other)
 

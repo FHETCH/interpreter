@@ -1,0 +1,24 @@
+prime q = (1 << 7) - 1;
+
+def main() {
+    // var x1:u32 = 1;
+    // var x2:u32 = 2;
+
+    //var y1:i32 = -3;
+    // var y2:i32 = 4;
+    //f(y1);
+    // var t = x1+x1;
+    var a:Vector<u32,4> = [0, 1, 2, 3] ;
+    var b = [7, 8 ,9, 10];
+
+    var abc = [a, b] * [4, 3] (mod q);
+    //f(a);
+    var x :MRP<u32,2,q> =[a,b];
+    var y = [a, b] (mod q);
+    write(abc);
+}
+
+def f(v:Vector<Vector<u32,4>,2>) {
+    write(v);
+}
+

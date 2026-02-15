@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Optional
@@ -58,11 +59,16 @@ class ScalarType(Type, StrEnum):
 
 @dataclass
 class VecType(Type):
-    inner: Type
+    inner: ScalarType | VecType
     length: int
 
     def __repr__(self):
         return f"Vector<{self.inner}, {self.length}>"
+
+    def __eq__(self, other):
+        if not isinstance(other, VecType):
+            return False
+        return self.inner == other.inner and self.length == other.length
 
 
 @dataclass
@@ -114,6 +120,7 @@ class BinaryOperation(Expression):
 
     def __repr__(self):
         return f"{self.lhs} {self.operation} {self.rhs}"
+
 
 @dataclass
 class UnaryOperation(Expression):

@@ -17,6 +17,25 @@ def modulo(x, q):
     return x
 
 
+def assert_same_size(v1: Vector, v2: Vector, operation: str):
+    """
+    Assert that two vectors have the same shape for element-wise operations.
+    
+    Args:
+        v1: First vector
+        v2: Second vector
+        operation: Name of the operation (for error message)
+    
+    Raises:
+        ValueError: If vectors have different shapes
+    """
+    if v1.value.shape != v2.value.shape:
+        raise ValueError(
+            f"Cannot perform {operation}: vectors have incompatible shapes "
+            f"{v1.value.shape} and {v2.value.shape}"
+        )
+
+
 def dispatch_mul_with_modulo(lhs, rhs, q):
     """
     Dispatch multiplication with modulo to the appropriate operand's mul method.
@@ -91,12 +110,16 @@ class Vector:
         if isinstance(other, int):
             return Vector(self.value + other)
         # if Vector or Scalar
+        if isinstance(other, Vector):
+            assert_same_size(self, other, "addition")
         return Vector(self.value + other.value)
 
     def __sub__(self, other:Vector | Scalar|int):
         if isinstance(other, int):
             return Vector(self.value - other)
         # if Vector or Scalar
+        if isinstance(other, Vector):
+            assert_same_size(self, other, "subtraction")
         return Vector(self.value - other.value)
 
     def __mul__(self, other: Vector | Scalar|int):
@@ -111,9 +134,13 @@ class Vector:
         return iter(self.value)
 
     def add(self, other, q):
+        if isinstance(other, Vector):
+            assert_same_size(self, other, "addition (with modulo)")
         return (self + other) % q
 
     def sub(self, other, q):
+        if isinstance(other, Vector):
+            assert_same_size(self, other, "subtraction (with modulo)")
         # TODO: signed arithmetic needs different logic for underflows
         underflow = self.value < other.value
         result = (self.value - other.value) + underflow.astype(self.value.dtype) * q
@@ -121,7 +148,7 @@ class Vector:
 
     # TODO: Add negate
 
-    def mul(self, other, q=None):
+    def mul(self, other:Vector|Scalar|int, q=None):
         if isinstance(q,Scalar):
             q=q.value
         # Convert scalar to python int
@@ -135,11 +162,13 @@ class Vector:
                 
         # Vector<u32> * Vector<u32>
         elif self.is_flat() and other.is_flat():
+            assert_same_size(self, other, "multiplication")
             result = Vector(self.value * other.value)
             if q is not None:
                 result = Vector(modulo(result.value ,q))
         # Nested vectors multiplication
         else:
+            assert_same_size(self, other, "multiplication")
             result = Vector(np.array([dispatch_mul_with_modulo(a, b, q) for a, b in zip(self.value, other.value)], dtype=object))
       
         return result

@@ -27,7 +27,13 @@ MAX_I64 = (1 << 63) - 1
 MIN_I32 = -(1 << 31)
 MIN_I64 = -(1 << 63)
 
-
+class TypeMismatchError(Exception):
+    """Raised when a type check fails during evaluation"""
+    def __init__(self, message: str, context: str = None):
+        self.context = context
+        super().__init__(message)
+        
+        
 def verify_binary_op_types(lhs, rhs, op):
 
     l_type = "v" if isinstance(lhs, (Vector)) else "s"
@@ -70,7 +76,9 @@ def determine_vector_type(vec: Vector) -> VecType:
     if isinstance(first_elem, Vector):
         # Check if all nested vectors have the same length
         if any(len(x.value) != len(first_elem.value) for x in vec.value):
-            raise ValueError(f"All vectors in a nested vector must have the same length")
+            raise ValueError(
+                f"All vectors in a nested vector must have the same length"
+            )
         # Nested vector: recursively determine inner type
         inner_type = determine_vector_type(first_elem)
         return VecType(inner_type, length)
@@ -106,42 +114,48 @@ def determine_vector_type(vec: Vector) -> VecType:
         raise TypeError(f"Unexpected vector element type: {type(first_elem)}")
 
 
-# TODO: can be moved inside ScalarLiteral as a method
-def verify_expression_type(expr: Scalar | Vector, type: ScalarType | VecType | MRPType):
-    if isinstance(type, MRPType):
+def verify_expression_type(
+    expr: Scalar | Vector, expected_type: ScalarType | VecType | MRPType, context: str = None
+):
+    """
+    Verify that an expression matches the expected type.
+    
+    Args:
+        expr: The expression to verify
+        expected_type: The expected type
+        context: Optional context for error messages (e.g., "parameter 'x'", "variable 'y'")
+    
+    Raises:
+        TypeMismatchError: If the type doesn't match
+    """
+    prefix = f"{context}: " if context else ""
+    if isinstance(expected_type, MRPType):
         return
-        # # MRP type is a vector with specific scalar type, length, and modulus
-        # # First verify it as a vector with the MRP's inner type
-        # vec_type = VecType(type.scalar, type.length)
-        # verify_literal_type(expr, vec_type)
-        # # The modulus constraint is handled separately during evaluation
-        # return
+       
 
     if isinstance(expr, Scalar):
         val = expr.value
-        if val < 0 and type in {ScalarType.U32, ScalarType.U64}:
-            raise Exception("cannot assign negative values to unsigned variables")
-        if type is ScalarType.U32 and val > MAX_U32:
-            raise Exception(f"{val} is out of U32 bounds")
-        if type is ScalarType.U64 and val > MAX_U64:
-            raise Exception(f"{val} is out of U64 bounds")
-
-        # 32-bit Signed check
-        if type is ScalarType.I32:
-            if not (MIN_I32 <= val <= MAX_I32):
-                raise ValueError(f"{val} is out of I32 bounds")
-
-        # 64-bit Signed check
-        if type is ScalarType.I64:
-            if not (MIN_I64 <= val <= MAX_I64):
-                raise ValueError(f"{val} is out of I64 bounds")
+        if val < 0 and expected_type in {ScalarType.U32, ScalarType.U64}:
+            raise TypeMismatchError(
+                f"{prefix}cannot assign negative value {val} to unsigned type {expected_type}"
+            )
+        if expected_type is ScalarType.U32 and val > MAX_U32:
+            raise TypeMismatchError(f"{prefix}value {val} is out of U32 bounds")
+        if expected_type is ScalarType.U64 and val > MAX_U64:
+            raise TypeMismatchError(f"{prefix}value {val} is out of U64 bounds")
+        if expected_type is ScalarType.I32 and not (MIN_I32 <= val <= MAX_I32):
+            raise TypeMismatchError(f"{prefix}value {val} is out of I32 bounds")
+        if expected_type is ScalarType.I64 and not (MIN_I64 <= val <= MAX_I64):
+            raise TypeMismatchError(f"{prefix}value {val} is out of I64 bounds")
     else:
-        vec_type = determine_vector_type(expr)
-        if vec_type != type:
-            raise ValueError(f"cannot assign {vec_type} to {type}")
+        actual_type = determine_vector_type(expr)
+        if actual_type != expected_type:
+            raise TypeMismatchError(
+                f"{prefix}expected type {expected_type}, but got {actual_type}"
+            )
 
 
-def eval_expr(expr, env, global_env,modulo=None)->Scalar|Vector:
+def eval_expr(expr, env, global_env, modulus=None) -> Scalar | Vector:
     match expr:
         case ScalarLiteral(value):
             return Scalar(value)
@@ -153,17 +167,16 @@ def eval_expr(expr, env, global_env,modulo=None)->Scalar|Vector:
             else:
                 raise NameError("Name not defined:", var)
         case BinaryOperation(op, lhs, rhs):
-            lhs = eval_expr(lhs, env, global_env,modulo)
-            rhs = eval_expr(rhs, env, global_env,modulo)
+            lhs = eval_expr(lhs, env, global_env, modulus)
+            rhs = eval_expr(rhs, env, global_env, modulus)
             verify_binary_op_types(lhs, rhs, op)
             match op:
                 case BinOp.Add:
-                    
-                    return lhs + rhs if modulo is None else lhs.add(rhs,modulo)
+                    return lhs + rhs if modulus is None else lhs.add(rhs, modulus)
                 case BinOp.Sub:
-                    return lhs - rhs if modulo is None else lhs.sub(rhs,modulo)
+                    return lhs - rhs if modulus is None else lhs.sub(rhs, modulus)
                 case BinOp.Mul:
-                    return lhs * rhs if modulo is None else lhs.mul(rhs,modulo)
+                    return lhs * rhs if modulus is None else lhs.mul(rhs, modulus)
                 case BinOp.Concat:
                     assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
                     return Vector(np.concatenate((lhs.value, rhs.value)))
@@ -183,7 +196,7 @@ def eval_expr(expr, env, global_env,modulo=None)->Scalar|Vector:
             args = [eval_expr(expr, env, global_env) for expr in args]
             return eval_func(func, *args, global_env=global_env)
         case VectorLiteral(vec):
-            value = [eval_expr(sub_expr, env, global_env,modulo) for sub_expr in vec]
+            value = [eval_expr(sub_expr, env, global_env, modulus) for sub_expr in vec]
             if all(isinstance(elem, Scalar) for elem in value):
                 value = np.array([elem.value for elem in value], dtype=np.uint64)
             else:
@@ -211,23 +224,23 @@ def eval_func(func, *args, global_env):
     for spec, arg in zip(func.args, args):
         # TODO: type checking
         if spec.type is not None:
-            verify_expression_type(arg,spec.type)
-            # raise ValueError(
-            #     f"TypeError: Parameter '{spec.name}' expected type '{spec.type}', but received '{arg.type}' value: {arg}."
-            # )
+            context = f"parameter '{spec.name}'"
+            verify_expression_type(arg, spec.type, context=context)
         env[spec.name] = arg
     for statement in func.body:
         match statement:
             case VarDefinition(name, type, expr):
-                q = statement.modulus 
-                if q:
-                    q = eval_expr(q,env, global_env)
-                res = eval_expr(expr, env, global_env,q)
+                modulus = None
+                if statement.modulus:
+                    modulus = eval_expr(statement.modulus, env, global_env)
+                    
+                res = eval_expr(expr, env, global_env, modulus)
                 if type:
-                    verify_expression_type(res, type)
+                    context = f"variable '{name}'"
+                    verify_expression_type(res, type,context=context)
                 env[name] = res
             case CallStatement(call):
-                eval_expr(call, env, global_env,statement)
+                eval_expr(call, env, global_env, statement)
             case Return(expr):
                 return eval_expr(expr, env, global_env)
             case other:

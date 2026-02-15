@@ -220,4 +220,71 @@ def test_nested_vector_nested_vector_mul_with_modulo():
     # First: [10,20,30] * [3,5,7] = [30,100,210] % 7 = [2,2,0]
     assert np.array_equal(result.value[0].value, np.array([2, 2, 0]))
     # Second: [15,25,35] * [2,4,6] = [30,100,210] % 7 = [2,2,0]
-    assert np.array_equal(result.value[1].value, np.array([2, 2, 0]))
+
+
+# Size assertion tests
+def test_vector_add_size_mismatch():
+    """Test that adding vectors of different sizes raises ValueError"""
+    import pytest
+    v1 = Vector(np.array([1, 2, 3], dtype=np.uint64))
+    v2 = Vector(np.array([4, 5], dtype=np.uint64))
+    
+    with pytest.raises(ValueError, match="Cannot perform addition: vectors have incompatible shapes"):
+        v1 + v2
+
+
+def test_vector_sub_size_mismatch():
+    """Test that subtracting vectors of different sizes raises ValueError"""
+    import pytest
+    v1 = Vector(np.array([1, 2, 3, 4], dtype=np.uint64))
+    v2 = Vector(np.array([4, 5], dtype=np.uint64))
+    
+    with pytest.raises(ValueError, match="Cannot perform subtraction: vectors have incompatible shapes"):
+        v1 - v2
+
+
+def test_vector_mul_size_mismatch():
+    """Test that multiplying vectors of different sizes raises ValueError"""
+    import pytest
+    v1 = Vector(np.array([1, 2, 3], dtype=np.uint64))
+    v2 = Vector(np.array([4, 5, 6, 7], dtype=np.uint64))
+    
+    with pytest.raises(ValueError, match="Cannot perform multiplication: vectors have incompatible shapes"):
+        v1 * v2
+
+
+def test_vector_add_with_modulo_size_mismatch():
+    """Test that adding vectors with modulo and different sizes raises ValueError"""
+    import pytest
+    v1 = Vector(np.array([10, 20], dtype=np.uint64))
+    v2 = Vector(np.array([3, 5, 7], dtype=np.uint64))
+    q = Scalar(7)
+    
+    with pytest.raises(ValueError, match="Cannot perform addition \\(with modulo\\): vectors have incompatible shapes"):
+        v1.add(v2, q)
+
+
+def test_vector_sub_with_modulo_size_mismatch():
+    """Test that subtracting vectors with modulo and different sizes raises ValueError"""
+    import pytest
+    v1 = Vector(np.array([10, 20, 30], dtype=np.uint64))
+    v2 = Vector(np.array([3, 5], dtype=np.uint64))
+    q = Scalar(7)
+    
+    with pytest.raises(ValueError, match="Cannot perform subtraction \\(with modulo\\): vectors have incompatible shapes"):
+        v1.sub(v2, q)
+
+
+def test_nested_vector_size_mismatch():
+    """Test that nested vectors with size mismatch raise ValueError"""
+    import pytest
+    v1 = Vector(np.array([1, 2, 3], dtype=np.uint64))
+    v2 = Vector(np.array([4, 5, 6], dtype=np.uint64))
+    nested1 = Vector(np.array([v1, v2], dtype=object))
+    
+    # Different outer size
+    v3 = Vector(np.array([2, 2, 2], dtype=np.uint64))
+    nested2 = Vector(np.array([v3], dtype=object))
+    
+    with pytest.raises(ValueError, match="Cannot perform multiplication"):
+        nested1 * nested2

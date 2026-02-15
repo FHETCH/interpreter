@@ -17,6 +17,29 @@ def modulo(x, q):
     return x
 
 
+def dispatch_mul_with_modulo(lhs, rhs, q):
+    """
+    Dispatch multiplication with modulo to the appropriate operand's mul method.
+    
+    This helper function is needed because when multiplying nested vectors,
+    one operand might be a raw Python int or numpy integer (not wrapped in Scalar/Vector),
+    so we need to determine which operand has the mul method and call it accordingly.
+    
+    Args:
+        lhs: Left operand (can be Vector, Scalar, or int)
+        rhs: Right operand (can be Vector, Scalar, or int)
+        q: Modulo value to apply after multiplication
+    
+    Returns:
+        Result of multiplication with modulo applied
+    """
+    if isinstance(lhs, Vector | Scalar):
+        return lhs.mul(rhs, q)
+    elif isinstance(rhs, Vector | Scalar):
+        return rhs.mul(lhs, q)
+    else:
+        raise TypeError(f"At least one operand must be Vector or Scalar, got {type(lhs)} and {type(rhs)}")
+
 @dataclass(frozen=True)
 class Scalar:
     # We use Python's arbitrary precision int for scalars in order to allow
@@ -24,24 +47,37 @@ class Scalar:
     value: int
 
     def __add__(self, other):
+        if isinstance(other, Vector):
+            return Vector(other.value + self.value)
         return Scalar(self.value + other.value)
 
     def __sub__(self, other):
+        if isinstance(other, Vector):
+            return Vector(self.value - other.value)
         return Scalar(self.value - other.value)
 
     def __mul__(self, other):
+        if isinstance(other, Vector):
+            return other * self
         return Scalar(self.value * other.value)
 
     def __mod__(self, q):
         return Scalar(self.value % q.value)
 
     def add(self, other, q):
+        if isinstance(other, Vector):
+            return Vector(modulo(other.value + self.value, q.value))
         return Scalar(modulo(self.value + other.value, q.value))
 
     def sub(self, other, q):
+        if isinstance(other, Vector):
+            result = self.value - other.value
+            return Vector(modulo(result, q.value))
         return Scalar(modulo(self.value - other.value, q.value))
 
     def mul(self, other, q):
+        if isinstance(other, Vector):
+            return other.mul(self, q)
         return Scalar(modulo(self.value * other.value, q.value))
 
     # TODO: Add negate
@@ -51,32 +87,20 @@ class Scalar:
 class Vector:
     value: np.array
 
-    def __add__(self, other):
+    def __add__(self, other:Vector | Scalar|int):
+        if isinstance(other, int):
+            return Vector(self.value + other)
+        # if Vector or Scalar
         return Vector(self.value + other.value)
 
-    def __sub__(self, other):
+    def __sub__(self, other:Vector | Scalar|int):
+        if isinstance(other, int):
+            return Vector(self.value - other)
+        # if Vector or Scalar
         return Vector(self.value - other.value)
 
-    def __mul__(self, other: Vector | Scalar):
-        return self.inner_mul(other, q=None)
-    
-    def inner_mul(self, other: Vector | Scalar, q:int):
-        if isinstance(other, Scalar):
-            result = Vector(self.value * other.value)
-            if q is not None:
-                result = Vector(modulo(result.value ,q))
-        elif self.is_flat() and other.is_flat():
-            result = Vector(self.value * other.value)
-            if q is not None:
-                result = Vector(modulo(result.value ,q))
-        elif not self.is_flat() and other.is_flat():
-            # Broadcasting: vector of vectors * flat vector
-            # Each sub-vector gets multiplied by corresponding scalar
-            result = Vector(np.array([a.inner_mul(Scalar(int(b)), q) for a, b in zip(self.value, other.value)], dtype=object))
-        else:
-            result = Vector(np.array([a.inner_mul(b, q) for a, b in zip(self.value, other.value)], dtype=object))
-      
-        return result
+    def __mul__(self, other: Vector | Scalar|int):
+        return self.mul(other, q=None)
 
     def __mod__(self, other):
         if isinstance(other, Scalar):
@@ -97,10 +121,28 @@ class Vector:
 
     # TODO: Add negate
 
-    def mul(self, other, q):
+    def mul(self, other, q=None):
         if isinstance(q,Scalar):
             q=q.value
-        return self.inner_mul(other, q)
+        # Convert scalar to python int
+        if isinstance(other, Scalar):
+            other = other.value
+        # Vector * Scalar
+        if isinstance(other, np.integer|int):
+            result = Vector(self.value * other)
+            if q is not None:
+                result = Vector(modulo(result.value ,q))
+                
+        # Vector<u32> * Vector<u32>
+        elif self.is_flat() and other.is_flat():
+            result = Vector(self.value * other.value)
+            if q is not None:
+                result = Vector(modulo(result.value ,q))
+        # Nested vectors multiplication
+        else:
+            result = Vector(np.array([dispatch_mul_with_modulo(a, b, q) for a, b in zip(self.value, other.value)], dtype=object))
+      
+        return result
 
     def forward_ntt(self, q, rou):
         """Forward NTT function"""

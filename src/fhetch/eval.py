@@ -68,10 +68,15 @@ def determine_vector_type(vec: Vector) -> VecType:
     first_elem = vec.value[0]
 
     if isinstance(first_elem, Vector):
+        # Check if all nested vectors have the same length
+        if any(len(x.value) != len(first_elem.value) for x in vec.value):
+            raise ValueError(f"All vectors in a nested vector must have the same length")
         # Nested vector: recursively determine inner type
         inner_type = determine_vector_type(first_elem)
         return VecType(inner_type, length)
     elif isinstance(first_elem, (np.integer, int)):
+        # only U32 is supported
+        return VecType(ScalarType.U32, length)
         # Vector of integers: determine appropriate scalar type based on all values
         all_values = vec.value.tolist()
 

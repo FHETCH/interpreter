@@ -205,10 +205,11 @@ def eval_func(func, *args, global_env):
     # update env with arguments
     for spec, arg in zip(func.args, args):
         # TODO: type checking
-        if spec.type is not None and arg.type is not None and spec.type != arg.type:
-            raise ValueError(
-                f"TypeError: Parameter '{spec.name}' expected type '{spec.type}', but received '{arg.type}' value: {arg}."
-            )
+        if spec.type is not None:
+            verify_expression_type(arg,spec.type)
+            # raise ValueError(
+            #     f"TypeError: Parameter '{spec.name}' expected type '{spec.type}', but received '{arg.type}' value: {arg}."
+            # )
         env[spec.name] = arg
     for statement in func.body:
         match statement:

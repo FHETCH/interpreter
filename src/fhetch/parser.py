@@ -27,10 +27,7 @@ def conv_expr(expr):
 
 
 Expression = Forward()
-# plain_integer is for use in type definitions (lengths, etc.) - stays as int
-plain_integer = (Literal("0x") + Word(hexnums)).set_parse_action(lambda s, l, t: int("".join(t), 0)) | ppc.integer
-# integer is for use in expressions - becomes ScalarLiteral
-integer = plain_integer.copy()
+integer = (Literal("0x") + Word(hexnums)).set_parse_action(lambda s, l, t: int("".join(t), 0)) | ppc.integer
 integer.set_parse_action(lambda s, l, t: ast.ScalarLiteral(t[0]))
 VecLiteral = Suppress('[') + Optional(DelimitedList(Expression, ',')) + Suppress(']')
 VecLiteral.set_parse_action(lambda s, l, t: ast.VectorLiteral(list(map(conv_expr, t))))
@@ -60,9 +57,9 @@ Expression.set_parse_action(lambda s, l, t: conv_expr(t[0]))
 Type = Forward()
 ScalarType = Keyword("u32") | Keyword("u64") | Keyword("i32") | Keyword("i64")
 ScalarType.set_parse_action(lambda s, l, t: ast.ScalarType(*t))
-VectorType = Suppress("Vector") + Suppress("<") + Type + Suppress(",") + plain_integer + Suppress(">")
+VectorType = Suppress("Vector") + Suppress("<") + Type + Suppress(",") + integer + Suppress(">")
 VectorType.set_parse_action(lambda s, l, t: ast.VecType(*t))
-MRPType = Suppress("MRP") + Suppress("<") + ScalarType + Suppress(",") + plain_integer + Suppress(",") + Expression + Suppress(">")
+MRPType = Suppress("MRP") + Suppress("<") + ScalarType + Suppress(",") + integer + Suppress(",") + Expression + Suppress(">")
 MRPType.set_parse_action(lambda s, l, t: ast.MRPType(*t))
 Type << (ScalarType | VectorType | MRPType)
 

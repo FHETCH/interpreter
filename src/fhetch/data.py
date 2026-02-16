@@ -115,9 +115,9 @@ class MRP:
     @classmethod
     def from_coeffs(cls, base: list[int], coeffs: list[int]):
         degree = len(coeffs)
-        coeffs = Vector(np.array(coeffs))
+        coeffs_vec = Vector(np.array(coeffs))
         return cls({
-            q: coeffs.forward_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
+            q: coeffs_vec.forward_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
             for q in base
         })
 
@@ -158,6 +158,8 @@ class MRP:
 
         if exact:
             result.value %= big_q
+            # Center the result around 0: values > big_q/2 become negative
+            result.value = np.where(result.value > big_q // 2, result.value - big_q, result.value)
         return result
 
     def extend_base(self, base: set[int], exact: bool):

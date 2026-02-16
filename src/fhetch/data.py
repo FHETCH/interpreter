@@ -16,29 +16,10 @@ def modulo(x, q):
         x -= (x > q // 2) * q
     return x
 
-
-def dispatch_mul_with_modulo(lhs, rhs, q):
-    """
-    Dispatch multiplication with modulo to the appropriate operand's mul method.
-    
-    This helper function is needed because when multiplying nested vectors,
-    one operand might be a raw Python int or numpy integer (not wrapped in Scalar/Vector),
-    so we need to determine which operand has the mul method and call it accordingly.
-    
-    Args:
-        lhs: Left operand (can be Vector, Scalar, or int)
-        rhs: Right operand (can be Vector, Scalar, or int)
-        q: Modulo value to apply after multiplication
-    
-    Returns:
-        Result of multiplication with modulo applied
-    """
-    if isinstance(lhs, Vector | Scalar):
-        return lhs.mul(rhs, q)
-    elif isinstance(rhs, Vector | Scalar):
-        return rhs.mul(lhs, q)
-    else:
-        raise TypeError(f"At least one operand must be Vector or Scalar, got {type(lhs)} and {type(rhs)}")
+def mul_reorder(lhs: Vector, rhs: Vector):
+    if isinstance(lhs.value[0], np.integer):
+        return rhs, lhs
+    return lhs, rhs
 
 @dataclass(frozen=True)
 class Scalar:
@@ -48,17 +29,17 @@ class Scalar:
 
     def __add__(self, other):
         if isinstance(other, Vector):
-            return Vector(other.value + self.value)
+            raise TypeError("Cannot add Vector to Scalar")
         return Scalar(self.value + other.value)
 
     def __sub__(self, other):
         if isinstance(other, Vector):
-            return Vector(self.value - other.value)
+            raise TypeError("Cannot Subtract Vector from Scalar")
         return Scalar(self.value - other.value)
 
     def __mul__(self, other):
         if isinstance(other, Vector):
-            return other * self
+            raise TypeError("Cannot Multiply Scalar with Vector")
         return Scalar(self.value * other.value)
 
     def __mod__(self, q):
@@ -82,24 +63,23 @@ class Scalar:
 
     # TODO: Add negate
 
-
 @dataclass
 class Vector:
     value: np.array
 
-    def __add__(self, other:Vector | Scalar|int):
+    def __add__(self, other: Vector | Scalar | int):
         if isinstance(other, int):
             return Vector(self.value + other)
         # if Vector or Scalar
         return Vector(self.value + other.value)
 
-    def __sub__(self, other:Vector | Scalar|int):
+    def __sub__(self, other: Vector | Scalar | int):
         if isinstance(other, int):
             return Vector(self.value - other)
         # if Vector or Scalar
         return Vector(self.value - other.value)
 
-    def __mul__(self, other: Vector | Scalar|int):
+    def __mul__(self, other: Vector | Scalar | int):
         return self.mul(other, q=None)
 
     def __mod__(self, other):
@@ -122,26 +102,20 @@ class Vector:
     # TODO: Add negate
 
     def mul(self, other, q=None):
-        if isinstance(q,Scalar):
-            q=q.value
+        if isinstance(q, Scalar):
+            q = q.value
         # Convert scalar to python int
         if isinstance(other, Scalar):
             other = other.value
         # Vector * Scalar
-        if isinstance(other, np.integer|int):
+        if isinstance(other, np.integer | int):
             result = Vector(self.value * other)
-            if q is not None:
-                result = Vector(modulo(result.value ,q))
-                
-        # Vector<u32> * Vector<u32>
-        elif self.is_flat() and other.is_flat():
-            result = Vector(self.value * other.value)
-            if q is not None:
-                result = Vector(modulo(result.value ,q))
-        # Nested vectors multiplication
         else:
-            result = Vector(np.array([dispatch_mul_with_modulo(a, b, q) for a, b in zip(self.value, other.value)], dtype=object))
-      
+            # Vector * Vector
+            lhs, rhs = mul_reorder(self, other)
+            result = Vector(lhs.value * rhs.value)
+        if q is not None:
+            result = result % q
         return result
 
     def forward_ntt(self, q, rou):
@@ -150,9 +124,11 @@ class Vector:
         rou2 = (rou * rou) % q
         coefficients = self.value.tolist()
         prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou=rou)
-        for (i, coefficient) in enumerate(coefficients[1:]):
+        for i, coefficient in enumerate(coefficients[1:]):
             coefficients[i + 1] = (prefactors[i + 1] * coefficient) % q
-        coefficients_ntt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=False)
+        coefficients_ntt = _number_theoretic_transform(
+            coefficients, q, rou=rou2, inverse=False
+        )
         return Vector(np.array(coefficients_ntt, dtype=self.value.dtype))
 
     def inverse_ntt(self, q, rou):
@@ -160,13 +136,16 @@ class Vector:
         q = q.value
         rou2 = (rou * rou) % q
         coefficients = self.value.tolist()
-        coefficients_intt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=True)
+        coefficients_intt = _number_theoretic_transform(
+            coefficients, q, rou=rou2, inverse=True
+        )
         prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou)
-        for (i, coefficient) in enumerate(coefficients_intt[1:]):
-            coefficients_intt[i + 1] = (prefactors[2 * len(coefficients) - i - 1] * coefficient) % q
+        for i, coefficient in enumerate(coefficients_intt[1:]):
+            coefficients_intt[i + 1] = (
+                prefactors[2 * len(coefficients) - i - 1] * coefficient
+            ) % q
         return Vector(np.array(coefficients_intt, dtype=self.value.dtype))
-    def is_flat(self):
-        return isinstance(self.value[0],np.integer)
+
 
 @dataclass
 class MRP:

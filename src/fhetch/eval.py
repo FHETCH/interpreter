@@ -80,11 +80,11 @@ def eval_func(func, *args, global_env):
         match statement:
             case VarDefinition(name, _type, expr):
                 q = statement.modulus 
-                if q:
+                if q is not None:
                     q = eval_expr(q,env, global_env)
                 env[name] = eval_expr(expr, env, global_env,q)
             case CallStatement(call):
-                eval_expr(call, env, global_env,statement)
+                eval_expr(call, env, global_env)
             case Return(expr):
                 return eval_expr(expr, env, global_env)
             case other:

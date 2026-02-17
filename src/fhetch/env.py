@@ -86,8 +86,6 @@ def builtin_read_mrp_u32_1024_Q(path: str):
     Returns:
         The loaded MRP object
     """
-    if serialization is None:
-        raise RuntimeError("Serialization module not available")
     return serialization.load_mrp(path)
 
 def builtin_write_mrp_u32_1024_Q(mrp, path: str):
@@ -97,8 +95,6 @@ def builtin_write_mrp_u32_1024_Q(mrp, path: str):
         mrp: The MRP object to save
         path: Output file path (will be created/overwritten)
     """
-    if serialization is None:
-        raise RuntimeError("Serialization module not available")
     serialization.save_mrp(mrp, path)
 
 

@@ -60,9 +60,11 @@ class CryptoContext:
 
     def encrypt(self, pt: Plaintext) -> Ciphertext:
         degree = len(next(iter(pt.poly.values.values())).value)
-        sk = MRP.from_coeffs(pt.poly.values.keys(), self._sk.value)
-        a = random_poly(pt.poly.values.keys(), degree)
-        b = pt.poly - a * sk + gen_noise(pt.poly.values.keys(), degree)
+        pt_base = pt.poly.values.keys()
+        # Create MRP sk from a vector based on the pt base
+        sk = MRP.from_coeffs(base = pt_base, coeffs=self._sk.value)
+        a = random_poly(pt_base, degree)
+        b = pt.poly - a * sk + gen_noise(pt_base, degree)
         return Ciphertext(pt.scale, [b, a])
 
     def decrypt_msg(self, cipher: Ciphertext) -> np.array:
@@ -71,13 +73,13 @@ class CryptoContext:
         return decode(Plaintext(cipher.scale, b + a * sk))
 
 
-def random_poly(moduli: list[int], degree: int) -> MRP:
+def random_poly(base: list[int], degree: int) -> MRP:
     coeffs = []
     rng = np.random.default_rng()
     for _ in range(degree):
         coeffs.append(rng.integers(-(2**31), 2**31, dtype=np.int32))
 
-    return MRP.from_coeffs(moduli, coeffs)
+    return MRP.from_coeffs(base, coeffs)
 
 
 def encode(msg:list[int], scale,base:list[int]) -> Plaintext:

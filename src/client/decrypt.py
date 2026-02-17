@@ -1,6 +1,7 @@
 import numpy as np
 from client.context import CryptoContext
-from client.crypto import Ciphertext, Parameters
+from client.crypto import Parameters
+from client import serialization
 from fhetch.data import Vector
 from fhetch.ntt import ROOTS_UNITY
 
@@ -53,19 +54,8 @@ def main():
     sk = np.load(args.sk)
     ctx = CryptoContext(params, Vector(sk))
     
-    # Load ciphertext
-    ct_data = np.load(args.ciphertext)
-    moduli = ct_data['moduli']
-    scale = ct_data['scale'].item() if 'scale' in ct_data else 2**30
-    
-    # Reconstruct MRP objects from limbs
-    from fhetch.data import MRP
-    ct_0_values = {int(moduli[i]): Vector(ct_data[f'ct_0_limb_{i}']) for i in range(len(moduli))}
-    ct_1_values = {int(moduli[i]): Vector(ct_data[f'ct_1_limb_{i}']) for i in range(len(moduli))}
-    
-    ct_0 = MRP(ct_0_values)
-    ct_1 = MRP(ct_1_values)
-    ct = Ciphertext(scale=scale, polynomials=[ct_0, ct_1])
+    # Load ciphertext using unified serialization
+    ct = serialization.load_ciphertext(args.ciphertext)
     
     # Decrypt
     decrypted_msg = ctx.decrypt_msg(ct)

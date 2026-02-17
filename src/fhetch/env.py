@@ -5,7 +5,9 @@ import numpy as np
 from .data import Scalar, Vector
 from .fhetch_ast import Constant, ScalarLiteral
 from .ntt import ROOTS_UNITY
-
+#TODO: import from client to interp seems a bit off
+# Import serialization utilities for MRP I/O
+from client import serialization
 
 def builtin_write(obj):
     match obj:
@@ -74,9 +76,37 @@ def builtin_intt(lhs: Vector, q: Scalar):
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 
+#TODO: handle path as StringLiteral after merge of the strings pr
+def builtin_read_mrp_u32_1024_Q(path: str):
+    """Load a single MRP from disk for the Q modulus set.
+    
+    Args:
+        path: Path to the .npz file containing the MRP
+        
+    Returns:
+        The loaded MRP object
+    """
+    if serialization is None:
+        raise RuntimeError("Serialization module not available")
+    return serialization.load_mrp(path)
+
+def builtin_write_mrp_u32_1024_Q(mrp, path: str):
+    """Save a single MRP to disk for the Q modulus set.
+    
+    Args:
+        mrp: The MRP object to save
+        path: Output file path (will be created/overwritten)
+    """
+    if serialization is None:
+        raise RuntimeError("Serialization module not available")
+    serialization.save_mrp(mrp, path)
+
+
 def default_global():
     return {
         "write": builtin_write,
+        "read_mrp_u32_1024_Q": builtin_read_mrp_u32_1024_Q,
+        "write_mrp_u32_1024_Q": builtin_write_mrp_u32_1024_Q,
         "print": builtin_print,
         "sr_addp": builtin_add,
         "sr_subp": builtin_sub,

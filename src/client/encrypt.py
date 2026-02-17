@@ -1,6 +1,7 @@
 import numpy as np
 from client.context import CryptoContext
 from client.crypto import Parameters
+from client import serialization
 from fhetch.data import Vector
 from fhetch.ntt import ROOTS_UNITY
 
@@ -47,20 +48,8 @@ def main():
 
     ct = ctx.encrypt_msg(msg, DEFAULT_SCALE)
 
-    # Save to disk - save each RNS limb separately
-    ct_0 = ct.polynomials[0]
-    ct_1 = ct.polynomials[1]
-    
-    # Get moduli (should be the same for both polynomials)
-    moduli = np.array(list(ct_0.values.keys()))
-    
-    # Save all limbs with their moduli
-    save_dict = {'moduli': moduli, 'scale': ct.scale}
-    for i, mod in enumerate(moduli):
-        save_dict[f'ct_0_limb_{i}'] = ct_0.values[mod].value
-        save_dict[f'ct_1_limb_{i}'] = ct_1.values[mod].value
-    
-    np.savez(args.output, **save_dict)
+    # Save to disk using unified serialization
+    serialization.save_ciphertext(ct, args.output)
     print(f"Ciphertext generated and saved to {args.output}")
 
 

@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
-from client.crypto_context import CryptoContext, Parameters, decode, encode
-from client.encode import embedding, unpacking
+from client.context import CryptoContext, Parameters, decode, encode
 from fhetch.ntt import ROOTS_UNITY
 
 
@@ -27,9 +26,8 @@ def ctx():
     return CryptoContext(params=CUSTOM_PARAMETERS)
 
 
-
 def test_encode_decode(ctx):
-    """Test that encrypting and decrypting a message returns the original message."""
+    """Test that encoding and decoding a message returns the original message."""
     # Create a test message 
     msg = np.array([1, 2, 5, 2, -1, 0, 4.5, 1.5])
 
@@ -44,7 +42,7 @@ def test_encode_decode(ctx):
     np.testing.assert_allclose(dec_msg, msg, rtol=1e-3, atol=1e-3)
 
 
-def test_encrypt_decrypt(ctx):
+def test_encrypt_decrypt(ctx:CryptoContext):
     """Test that encrypting and decrypting a message returns the original message."""
     # Create a test message 
     msg = np.array([1, 2, 5, 2, -1, 0, 4.5, 1.5])

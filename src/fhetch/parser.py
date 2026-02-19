@@ -1,4 +1,4 @@
-from pyparsing import pyparsing_common as ppc, Word, Suppress, Keyword, one_of, infix_notation, \
+from pyparsing import QuotedString, pyparsing_common as ppc, Word, Suppress, Keyword, one_of, infix_notation, \
     OpAssoc, DelimitedList, Forward, hexnums, Literal, Optional, Group, cStyleComment, cppStyleComment, \
     ParserElement
 
@@ -16,6 +16,8 @@ def conv_expr(expr):
             return ast.VarAccess(var)
         case int(value):
             return ast.ScalarLiteral(value)
+        case ast.StringLiteral():
+            return expr
         case [str(op), operand]:
             return ast.UnaryOperation(op, operand)
         case [lhs, str(op), rhs]:
@@ -27,13 +29,15 @@ def conv_expr(expr):
 
 
 Expression = Forward()
+string = QuotedString('"')
+string.set_parse_action(lambda s, l, t: ast.StringLiteral(t[0]))
 integer = (Literal("0x") + Word(hexnums)).set_parse_action(lambda s, l, t: int("".join(t), 0)) | ppc.integer
 integer.set_parse_action(lambda s, l, t: ast.ScalarLiteral(t[0]))
 VecLiteral = Suppress('[') + Optional(DelimitedList(Expression, ',')) + Suppress(']')
 VecLiteral.set_parse_action(lambda s, l, t: ast.VectorLiteral(list(map(conv_expr, t))))
 FunctionCall = ppc.identifier + Suppress("(") + Group(Optional(DelimitedList(Expression))) + Suppress(")")
 FunctionCall.set_parse_action(lambda s, l, t: ast.FunctionCall(t[0], t[1]))
-Operand = FunctionCall | ppc.identifier | integer | VecLiteral
+Operand = FunctionCall | ppc.identifier | integer | VecLiteral | string
 
 signop = one_of("+ -")
 multop = one_of("* /")

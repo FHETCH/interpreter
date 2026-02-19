@@ -16,7 +16,7 @@ def KeySwitch(poly: MRP<u32, 1024, Q>, k00, k01, k10, k11) {
 }
 
 def main() {
-    var ct_a0: MRP<u32, 1024, Q> = read();
+    var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("/path/to");
     var ct_a1: MRP<u32, 1024, Q> = read();
 
     var ct_b0: MRP<u32, 1024, Q> = read();
@@ -26,10 +26,10 @@ def main() {
 	var prod1 = ct_a0 * ct_b1 + ct_a1 * ct_b0;
 	var prod2 = ct_a1 * ct_b1;
 
-	var relin_d0_0: MRP<u32, 1024, QP> = read();
-	var relin_d0_1: MRP<u32, 1024, QP> = read();
-	var relin_d1_0: MRP<u32, 1024, QP> = read();
-	var relin_d1_1: MRP<u32, 1024, QP> = read();
+	var relin_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
+	var relin_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
+	var relin_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
+	var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
 
 	var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1);
 	write(prod0 + get(ks, 0));

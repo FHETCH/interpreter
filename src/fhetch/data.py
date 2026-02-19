@@ -57,6 +57,11 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
+        if isinstance(other, int) and self.value.dtype != np.dtype(object):
+            try:
+                np.array(other, dtype=self.value.dtype)
+            except OverflowError:
+                return Vector(self.value.astype(object) * other)
         return Vector(self.value * other)
 
     def __mod__(self, other):
@@ -138,12 +143,17 @@ class MRP:
         return MRP({
             q: (v1 * other.values[q]) % q for q, v1 in self.values.items()
         })
+        
+    def muls(self, other: int|np.integer):
+        return MRP({
+            q: (v1 * other) % q for q, v1 in self.values.items()
+        })
 
     def extract_base(self, base: set[int]):
         return MRP({q: self.values[q] for q in base})
 
     def reconstruct(self, exact: bool) -> Vector:
-        degree = len(next(iter(self.values.values())).value)
+        degree = self.degree()
         for q in self.values.keys():
             if (degree, q) not in ROOTS_UNITY:
                 raise RuntimeError("Missing root of unity for (degree, q): ", degree, q)
@@ -177,3 +187,5 @@ class MRP:
             for q in base
         }
         return MRP(self.values | new_base)
+    def degree(self):
+        return len(next(iter(self.values.values())).value)

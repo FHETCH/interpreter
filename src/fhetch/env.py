@@ -3,7 +3,7 @@ import sys
 import numpy as np
 
 from .data import Scalar, Vector
-from .fhetch_ast import Constant, ScalarLiteral
+from .fhetch_ast import Constant, ScalarLiteral, StringLiteral
 from .ntt import ROOTS_UNITY
 #TODO: import from client to interp seems a bit off
 # Import serialization utilities for MRP I/O
@@ -77,7 +77,7 @@ def builtin_intt(lhs: Vector, q: Scalar):
 
 
 #TODO: handle path as StringLiteral after merge of the strings pr
-def builtin_read_mrp_u32_1024_Q(path: str):
+def builtin_read_mrp_u32_1024_Q(path: StringLiteral):
     """Load a single MRP from disk for the Q modulus set.
     
     Args:
@@ -86,16 +86,16 @@ def builtin_read_mrp_u32_1024_Q(path: str):
     Returns:
         The loaded MRP object
     """
-    return serialization.load_mrp(path)
+    return serialization.load_mrp(path.value)
 
-def builtin_write_mrp_u32_1024_Q(mrp, path: str):
+def builtin_write_mrp_u32_1024_Q(mrp, path: StringLiteral):
     """Save a single MRP to disk for the Q modulus set.
     
     Args:
         mrp: The MRP object to save
         path: Output file path (will be created/overwritten)
     """
-    serialization.save_mrp(mrp, path)
+    serialization.save_mrp(mrp, path.value)
 
 
 def default_global():

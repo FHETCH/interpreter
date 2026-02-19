@@ -65,7 +65,7 @@ def load_mrp(path: Union[str, Path]) -> MRP:
     
     return MRP(values)
 
-
+#TODO: remove this method use only the mrp one
 def save_ciphertext(ct: Ciphertext, path: Union[str, Path]) -> None:
     """Save a complete Ciphertext (2 MRPs + scale) to disk in .npz format.
     

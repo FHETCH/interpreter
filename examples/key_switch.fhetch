@@ -16,7 +16,7 @@ def KeySwitch(poly: MRP<u32, 1024, Q>, k00, k01, k10, k11) {
 }
 
 def main() {
-    var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("/path/to");
+    var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("ct.npz");
     var ct_a1: MRP<u32, 1024, Q> = read();
 
     var ct_b0: MRP<u32, 1024, Q> = read();

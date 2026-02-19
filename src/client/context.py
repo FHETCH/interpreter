@@ -3,6 +3,7 @@ from math import e, pi, prod
 import numpy as np
 from client.crypto import Ciphertext, Parameters, Plaintext
 from client.keygen import gen_noise, gen_sk
+from client.utils import random_poly
 from fhetch.data import MRP, Vector
 from client.encode import embedding, unpacking
 
@@ -17,7 +18,7 @@ class CryptoContext:
         return self.encrypt(pt)
 
     def encrypt(self, pt: Plaintext) -> Ciphertext:
-        degree = len(next(iter(pt.poly.values.values())).value)
+        degree = pt.poly.degree()
         pt_base = pt.poly.values.keys()
         # Create MRP sk from a vector based on the pt base
         sk = MRP.from_coeffs(base = pt_base, coeffs=self._sk.value)
@@ -30,13 +31,6 @@ class CryptoContext:
         sk = MRP.from_coeffs(a.values.keys(), self._sk.value)
         return decode(Plaintext(cipher.scale, b + a * sk))
 
-
-def random_poly(base: list[int], degree: int) -> MRP:
-    Q = prod(base)
-    rng = np.random.default_rng()
-    coeffs = rng.integers(0, Q ,size=degree)
-
-    return MRP.from_coeffs(base, coeffs)
 
 
 def encode(msg:list[int], scale,base:list[int]) -> Plaintext:

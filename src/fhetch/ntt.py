@@ -3,6 +3,9 @@ from sympy.utilities.iterables import ibin, iterable
 from sympy.utilities.misc import as_int
 
 
+
+
+
 # Scratchpad to store powers of roots of unity
 #
 # NOTE: This implementation assumes the root of unity is set the first time an (i)NTT is called

@@ -29,6 +29,9 @@ class _NbTheoryScratchpad:
 
 _nb_theory_scratchpad = _NbTheoryScratchpad()
 
+# Root of unity used for the NTT (if None, use the default from Sympy)
+ROOTS_UNITY = {}
+
 
 # Modified NTT function from Sympy
 def _number_theoretic_transform(seq, prime, rou, inverse=False):

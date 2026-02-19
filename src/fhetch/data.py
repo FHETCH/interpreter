@@ -7,7 +7,7 @@ from math import prod
 
 import numpy as np
 
-from .ntt import _nb_theory_scratchpad, _number_theoretic_transform
+from .ntt import _nb_theory_scratchpad, _number_theoretic_transform, ROOTS_UNITY
 
 
 def modulo(x, q):
@@ -56,7 +56,8 @@ class Vector:
         return Vector(self.value - other.value)
 
     def __mul__(self, other):
-        return Vector(self.value * other.value)
+        other = getattr(other, 'value', other)
+        return Vector(self.value * other)
 
     def __mod__(self, other):
         if isinstance(other, Scalar):
@@ -103,61 +104,74 @@ class Vector:
 
 @dataclass
 class MRP:
-    values: dict[Scalar, Vector]
+    """
+    Multi-Residue Polynomial in the evaluation domain.
 
-    def add(self, other: MRP):
-        assert set(self.values) == set(other.values)
-        return MRP({
-            q: v1.add(other.values[q], q) for q, v1 in self.values.items()
+    Note: this only supports primes of 32-bits, and unsigned arithmetic.
+    """
+    # Map each prime to the vector of values.
+    values: dict[int, Vector]
+
+    @classmethod
+    def from_coeffs(cls, base: list[int], coeffs: list[int]):
+        degree = len(coeffs)
+        coeffs = Vector(np.array(coeffs))
+        return cls({
+            q: coeffs.forward_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
+            for q in base
         })
 
-    def sub(self, other: MRP):
+    def __add__(self, other: MRP):
         assert set(self.values) == set(other.values)
         return MRP({
-            q: v1.sub(other.values[q], q) for q, v1 in self.values.items()
+            q: (v1 + other.values[q]) % q for q, v1 in self.values.items()
         })
 
-    def mul(self, other: MRP):
+    def __sub__(self, other: MRP):
         assert set(self.values) == set(other.values)
         return MRP({
-            q: v1.mul(other.values[q], q) for q, v1 in self.values.items()
+            q: (v1 - other.values[q]) % q for q, v1 in self.values.items()
         })
 
-    def extract_base(self, base: set[Scalar]):
+    def __mul__(self, other: MRP):
+        assert set(self.values) == set(other.values)
+        return MRP({
+            q: (v1 * other.values[q]) % q for q, v1 in self.values.items()
+        })
+
+    def extract_base(self, base: set[int]):
         return MRP({q: self.values[q] for q in base})
 
-    def _reconstruct(self, exact: bool):
-        big_q = prod(q.value for q in self.values.keys())
-        shape = next(iter(self.values.values())).value.shape
-        result = Vector(np.zeros(shape=shape, dtype=object))
+    def reconstruct(self, exact: bool) -> Vector:
+        degree = len(next(iter(self.values.values())).value)
+        for q in self.values.keys():
+            if (degree, q) not in ROOTS_UNITY:
+                raise RuntimeError("Missing root of unity for (degree, q): ", degree, q)
+
+        big_q = prod(self.values.keys())
+        result = Vector(np.zeros(shape=degree, dtype=object))
         for q, vec in self.values.items():
-            q_star = big_q // q.value
-            q_hat = Scalar(pow(q_star, -1, q.value))
-            print(f"{q_star=}")
-            print(f"{q_hat=}")
-            vec = intt(vec, q)
-            result += vec.mul(q_hat, Scalar(q)) * Scalar(q_star)
-            print(f"{result=}")
+            q_star = big_q // q
+            q_hat = Scalar(pow(q_star, -1, q))
+            vec = vec.inverse_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
+            result += ((vec * q_hat) % q) * q_star
+
         if exact:
             result.value %= big_q
         return result
 
-    def extend_base(self, base: set[Scalar], exact: bool):
-        common = set(self.values) & base
+    def extend_base(self, new_primes: set[int], exact: bool):
+        common = set(self.values.keys()) & new_primes
         if common:
             raise ValueError("Cannot extend to base that is already part of the MRP", common)
 
-        dtype = next(iter(self.values.values())).value.dtype
-        reconstructed = self._reconstruct(exact)
+        reconstructed = self.reconstruct(exact)
+        degree = len(reconstructed.value)
+        for q in new_primes:
+            if (degree, q) not in ROOTS_UNITY:
+                raise RuntimeError("Missing root of unity for (degree, q): ", degree, q)
         new_base = {
-            q: ntt((reconstructed % q).astype(dtype), q)
-            for q in base
+            q: reconstructed.forward_ntt(Scalar(q), rou=ROOTS_UNITY[degree, q])
+            for q in new_primes
         }
         return MRP(self.values | new_base)
-
-
-def ntt(x, q):
-    return x
-
-def intt(x, q):
-    return x

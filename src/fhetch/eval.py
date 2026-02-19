@@ -3,7 +3,7 @@ from inspect import isfunction
 import numpy as np
 
 from .data import Vector, Scalar
-from .fhetch_ast import Constant, BinaryOperation, BinOp, VectorLiteral, UnaryOperation, ScalarLiteral, VarAccess, \
+from .fhetch_ast import Constant, BinaryOperation, BinOp, StringLiteral, VectorLiteral, UnaryOperation, ScalarLiteral, VarAccess, \
     VarDefinition, Return, FunctionCall, CallStatement
 
 
@@ -53,6 +53,8 @@ def eval_expr(expr, env, global_env):
             else:
                 value = np.array(value, dtype=object)
             return Vector(value)
+        case StringLiteral(value):
+            return expr
         case other:
             raise NotImplementedError(other)
 

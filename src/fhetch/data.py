@@ -160,18 +160,18 @@ class MRP:
             result.value %= big_q
         return result
 
-    def extend_base(self, base: set[int], exact: bool):
-        common = set(self.values.keys()) & base
+    def extend_base(self, new_primes: set[int], exact: bool):
+        common = set(self.values.keys()) & new_primes
         if common:
             raise ValueError("Cannot extend to base that is already part of the MRP", common)
 
         reconstructed = self.reconstruct(exact)
         degree = len(reconstructed.value)
-        for q in base:
+        for q in new_primes:
             if (degree, q) not in ROOTS_UNITY:
                 raise RuntimeError("Missing root of unity for (degree, q): ", degree, q)
         new_base = {
             q: reconstructed.forward_ntt(Scalar(q), rou=ROOTS_UNITY[degree, q])
-            for q in base
+            for q in new_primes
         }
         return MRP(self.values | new_base)

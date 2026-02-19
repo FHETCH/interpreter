@@ -3,15 +3,16 @@ import sys
 import numpy as np
 
 from .data import Scalar, Vector
-from .fhetch_ast import Constant
+from .fhetch_ast import Constant, ScalarLiteral
+from .ntt import ROOTS_UNITY
 
-# Root of unity used for the NTT (if None, use the default from Sympy)
-ROOTS_UNITY = {}
 
 def builtin_write(obj):
     match obj:
         case Scalar(x):
             sys.stdout.buffer.write(int(x).to_bytes(4, "little"))
+        case np.uint64():
+            sys.stdout.buffer.write(obj.tobytes())
         case Vector(v):
             if v.dtype.kind in ('u', 'i'):
                 # optimization for vectors of scalars

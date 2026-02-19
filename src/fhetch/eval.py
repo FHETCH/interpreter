@@ -3,11 +3,159 @@ from inspect import isfunction
 import numpy as np
 
 from .data import Vector, Scalar
-from .fhetch_ast import Constant, BinaryOperation, BinOp, VectorLiteral, UnaryOperation, ScalarLiteral, VarAccess, \
-    VarDefinition, Return, FunctionCall, CallStatement
+from .fhetch_ast import (
+    Constant,
+    BinaryOperation,
+    BinOp,
+    MRPType,
+    VecType,
+    ScalarType,
+    VectorLiteral,
+    UnaryOperation,
+    ScalarLiteral,
+    VarAccess,
+    VarDefinition,
+    Return,
+    FunctionCall,
+    CallStatement,
+)
+
+MAX_U32 = (1 << 32) - 1
+MAX_U64 = (1 << 64) - 1
+MAX_I32 = (1 << 31) - 1
+MAX_I64 = (1 << 63) - 1
+MIN_I32 = -(1 << 31)
+MIN_I64 = -(1 << 63)
+
+class TypeMismatchError(Exception):
+    """Raised when a type check fails during evaluation"""
+    def __init__(self, message: str, context: str = None):
+        self.context = context
+        super().__init__(message)
+        
+        
+def verify_binary_op_types(lhs, rhs, op):
+
+    l_type = "v" if isinstance(lhs, (Vector)) else "s"
+    r_type = "v" if isinstance(rhs, (Vector)) else "s"
+
+    # 2. Define the "Allow List"
+    # Format: {operator: {(lhs_type, rhs_type), ...}}
+    allowed_ops = {
+        BinOp.Add: {("s", "s"), ("v", "v")},
+        BinOp.Sub: {("s", "s"), ("v", "v")},
+        BinOp.Mul: {("s", "s"), ("v", "s"), ("s", "v"), ("v", "v")},
+        BinOp.Concat: {("v", "v")},
+        BinOp.Shl: {("s", "s")},
+        BinOp.Shr: {("s", "s")},
+    }
+
+    if (l_type, r_type) not in allowed_ops[op]:
+        # TODO: Custom exception
+        raise Exception(
+            f"The operation: {type(lhs).__name__} {op} {type(rhs).__name__} is not allowed"
+        )
 
 
-def eval_expr(expr, env, global_env):
+def determine_vector_type(vec: Vector) -> VecType:
+    """
+    Determine the VecType from a Vector instance.
+
+    For a vector of integers: returns Vector<u32, len> (or appropriate scalar type)
+    For a nested vector: recursively constructs the correct VecType
+    """
+    length = len(vec.value)
+
+    if length == 0:
+        # Empty vector, default to U32
+        return VecType(ScalarType.U32, 0)
+
+    # Check the first element to determine if it's nested or scalar
+    first_elem = vec.value[0]
+
+    if isinstance(first_elem, Vector):
+        # Check if all nested vectors have the same length
+        if any(len(x.value) != len(first_elem.value) for x in vec.value):
+            raise ValueError(
+                f"All vectors in a nested vector must have the same length"
+            )
+        # Nested vector: recursively determine inner type
+        inner_type = determine_vector_type(first_elem)
+        return VecType(inner_type, length)
+    elif isinstance(first_elem, (np.integer, int)):
+        # only U32 is supported
+        return VecType(ScalarType.U32, length)
+        # Vector of integers: determine appropriate scalar type based on all values
+        all_values = vec.value.tolist()
+
+        # Find the largest absolute value
+        largest = max(abs(max(all_values)), abs(min(all_values)))
+
+        # Check if any value is negative
+        has_negative = any(x < 0 for x in all_values)
+
+        # Determine appropriate scalar type
+        if has_negative:
+            # Signed type needed
+            if largest <= MAX_I32:
+                inner_type = ScalarType.I32
+            else:
+                inner_type = ScalarType.I64
+        else:
+            # Unsigned type is sufficient
+            if largest <= MAX_U32:
+                inner_type = ScalarType.U32
+            else:
+                inner_type = ScalarType.U64
+
+        return VecType(inner_type, length)
+    else:
+        # Handle other cases (shouldn't happen in normal flow)
+        raise TypeError(f"Unexpected vector element type: {type(first_elem)}")
+
+
+def verify_expression_type(
+    expr: Scalar | Vector, expected_type: ScalarType | VecType | MRPType, context: str = None
+):
+    """
+    Verify that an expression matches the expected type.
+    
+    Args:
+        expr: The expression to verify
+        expected_type: The expected type
+        context: Optional context for error messages (e.g., "parameter 'x'", "variable 'y'")
+    
+    Raises:
+        TypeMismatchError: If the type doesn't match
+    """
+    prefix = f"{context}: " if context else ""
+    if isinstance(expected_type, MRPType):
+        return
+       
+
+    if isinstance(expr, Scalar):
+        val = expr.value
+        if val < 0 and expected_type in {ScalarType.U32, ScalarType.U64}:
+            raise TypeMismatchError(
+                f"{prefix}cannot assign negative value {val} to unsigned type {expected_type}"
+            )
+        if expected_type is ScalarType.U32 and val > MAX_U32:
+            raise TypeMismatchError(f"{prefix}value {val} is out of U32 bounds")
+        if expected_type is ScalarType.U64 and val > MAX_U64:
+            raise TypeMismatchError(f"{prefix}value {val} is out of U64 bounds")
+        if expected_type is ScalarType.I32 and not (MIN_I32 <= val <= MAX_I32):
+            raise TypeMismatchError(f"{prefix}value {val} is out of I32 bounds")
+        if expected_type is ScalarType.I64 and not (MIN_I64 <= val <= MAX_I64):
+            raise TypeMismatchError(f"{prefix}value {val} is out of I64 bounds")
+    else:
+        actual_type = determine_vector_type(expr)
+        if actual_type != expected_type:
+            raise TypeMismatchError(
+                f"{prefix}expected type {expected_type}, but got {actual_type}"
+            )
+
+
+def eval_expr(expr, env, global_env, modulus=None) -> Scalar | Vector:
     match expr:
         case ScalarLiteral(value):
             return Scalar(value)
@@ -19,15 +167,16 @@ def eval_expr(expr, env, global_env):
             else:
                 raise NameError("Name not defined:", var)
         case BinaryOperation(op, lhs, rhs):
-            lhs = eval_expr(lhs, env, global_env)
-            rhs = eval_expr(rhs, env, global_env)
+            lhs = eval_expr(lhs, env, global_env, modulus)
+            rhs = eval_expr(rhs, env, global_env, modulus)
+            verify_binary_op_types(lhs, rhs, op)
             match op:
                 case BinOp.Add:
-                    return lhs + rhs
+                    return lhs + rhs if modulus is None else lhs.add(rhs, modulus)
                 case BinOp.Sub:
-                    return lhs - rhs
+                    return lhs - rhs if modulus is None else lhs.sub(rhs, modulus)
                 case BinOp.Mul:
-                    return lhs * rhs
+                    return lhs * rhs if modulus is None else lhs.mul(rhs, modulus)
                 case BinOp.Concat:
                     assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
                     return Vector(np.concatenate((lhs.value, rhs.value)))
@@ -47,7 +196,7 @@ def eval_expr(expr, env, global_env):
             args = [eval_expr(expr, env, global_env) for expr in args]
             return eval_func(func, *args, global_env=global_env)
         case VectorLiteral(vec):
-            value = [eval_expr(sub_expr, env, global_env) for sub_expr in vec]
+            value = [eval_expr(sub_expr, env, global_env, modulus) for sub_expr in vec]
             if all(isinstance(elem, Scalar) for elem in value):
                 value = np.array([elem.value for elem in value], dtype=np.uint64)
             else:
@@ -74,13 +223,24 @@ def eval_func(func, *args, global_env):
     # update env with arguments
     for spec, arg in zip(func.args, args):
         # TODO: type checking
+        if spec.type is not None:
+            context = f"parameter '{spec.name}'"
+            verify_expression_type(arg, spec.type, context=context)
         env[spec.name] = arg
     for statement in func.body:
         match statement:
-            case VarDefinition(name, _type, expr):
-                env[name] = eval_expr(expr, env, global_env)
+            case VarDefinition(name, type, expr):
+                modulus = None
+                if statement.modulus:
+                    modulus = eval_expr(statement.modulus, env, global_env)
+                    
+                res = eval_expr(expr, env, global_env, modulus)
+                if type:
+                    context = f"variable '{name}'"
+                    verify_expression_type(res, type,context=context)
+                env[name] = res
             case CallStatement(call):
-                eval_expr(call, env, global_env)
+                eval_expr(call, env, global_env, statement)
             case Return(expr):
                 return eval_expr(expr, env, global_env)
             case other:

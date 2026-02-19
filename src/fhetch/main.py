@@ -18,7 +18,7 @@ def main():
     args = parse_args()
     prog_path = args.program
     prog = Program.parse_file(prog_path, parse_all=True).program
-    desugar(prog)
+    #desugar(prog)
     global_env = default_global()
     global_env.update(eval_globals(prog))
     validate_all(prog, global_env)

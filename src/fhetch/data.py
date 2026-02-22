@@ -13,9 +13,8 @@ from .ntt import _nb_theory_scratchpad, _number_theoretic_transform, ROOTS_UNITY
 def modulo(x, q):
     x %= q
     if x.dtype == np.int64:
-        x -= (x > q//2) * q
+        x -= (x > q // 2) * q
     return x
-
 
 @dataclass(frozen=True)
 class Scalar:
@@ -24,35 +23,55 @@ class Scalar:
     value: int
 
     def __add__(self, other):
+        if isinstance(other, Vector):
+            raise TypeError("Cannot add Vector to Scalar")
         return Scalar(self.value + other.value)
 
     def __sub__(self, other):
+        if isinstance(other, Vector):
+            raise TypeError("Cannot Subtract Vector from Scalar")
         return Scalar(self.value - other.value)
 
     def __mul__(self, other):
+        if isinstance(other, Vector):
+            raise TypeError("Cannot Multiply Scalar with Vector")
         return Scalar(self.value * other.value)
 
     def __mod__(self, q):
         return Scalar(self.value % q.value)
 
     def add(self, other, q):
+        if isinstance(other, Vector):
+            return Vector(modulo(other.value + self.value, q.value))
         return Scalar(modulo(self.value + other.value, q.value))
 
     def sub(self, other, q):
+        if isinstance(other, Vector):
+            result = self.value - other.value
+            return Vector(modulo(result, q.value))
         return Scalar(modulo(self.value - other.value, q.value))
 
     def mul(self, other, q):
+        if isinstance(other, Vector):
+            return other.mul(self, q)
         return Scalar(modulo(self.value * other.value, q.value))
 
+    # TODO: Add negate
 
 @dataclass
 class Vector:
     value: np.array
 
-    def __add__(self, other):
+    def __add__(self, other: Vector | Scalar | int):
+        if isinstance(other, int):
+            return Vector(self.value + other)
+        # if Vector or Scalar
         return Vector(self.value + other.value)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Vector | Scalar | int):
+        if isinstance(other, int):
+            return Vector(self.value - other)
+        # if Vector or Scalar
         return Vector(self.value - other.value)
 
     def __mul__(self, other):
@@ -76,8 +95,26 @@ class Vector:
         result = (self.value - other.value) + underflow.astype(self.value.dtype) * q
         return Vector(result % q)
 
-    def mul(self, other, q):
-        return (self * other) % q
+    # TODO: Add negate
+
+    def mul(self, other, q=None):
+        if isinstance(q, Scalar):
+            q = q.value
+        # Convert scalar to python int
+        if isinstance(other, Scalar):
+            other = other.value
+        # Vector * Scalar
+        if isinstance(other, np.integer | int):
+            result = Vector(self.value * other)
+        else:
+            # Vector * Vector
+            result = Vector(self.value * other.value)
+        if q is not None:
+            result = result % q
+        return result
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def forward_ntt(self, q, rou):
         """Forward NTT function"""
@@ -85,9 +122,11 @@ class Vector:
         rou2 = (rou * rou) % q
         coefficients = self.value.tolist()
         prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou=rou)
-        for (i, coefficient) in enumerate(coefficients[1:]):
+        for i, coefficient in enumerate(coefficients[1:]):
             coefficients[i + 1] = (prefactors[i + 1] * coefficient) % q
-        coefficients_ntt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=False)
+        coefficients_ntt = _number_theoretic_transform(
+            coefficients, q, rou=rou2, inverse=False
+        )
         return Vector(np.array(coefficients_ntt, dtype=self.value.dtype))
 
     def inverse_ntt(self, q, rou):
@@ -95,10 +134,14 @@ class Vector:
         q = q.value
         rou2 = (rou * rou) % q
         coefficients = self.value.tolist()
-        coefficients_intt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=True)
+        coefficients_intt = _number_theoretic_transform(
+            coefficients, q, rou=rou2, inverse=True
+        )
         prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou)
-        for (i, coefficient) in enumerate(coefficients_intt[1:]):
-            coefficients_intt[i + 1] = (prefactors[2 * len(coefficients) - i - 1] * coefficient) % q
+        for i, coefficient in enumerate(coefficients_intt[1:]):
+            coefficients_intt[i + 1] = (
+                prefactors[2 * len(coefficients) - i - 1] * coefficient
+            ) % q
         return Vector(np.array(coefficients_intt, dtype=self.value.dtype))
 
 
@@ -163,7 +206,9 @@ class MRP:
     def extend_base(self, new_primes: set[int], exact: bool):
         common = set(self.values.keys()) & new_primes
         if common:
-            raise ValueError("Cannot extend to base that is already part of the MRP", common)
+            raise ValueError(
+                "Cannot extend to base that is already part of the MRP", common
+            )
 
         reconstructed = self.reconstruct(exact)
         degree = len(reconstructed.value)

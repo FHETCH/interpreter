@@ -3,7 +3,7 @@ import numpy as np
 from client.context import CryptoContext, Parameters, decode, encode
 from client.crypto import Ciphertext
 from client.serialization import load_mrp, save_mrp
-from client.keygen import gen_ksk, gen_sk
+from client.keygen import gen_ksk, gen_relin_key, gen_sk
 from client.utils import find_psi
 from fhetch import parser
 from fhetch.data import MRP, Vector
@@ -22,8 +22,14 @@ DEFAULT_SCALE = 2.0**31
 #     ROOTS_UNITY[(16, q)] = psi
 
 
-Q = [0x7FFE0001, 0x7FF80001, 0x7FEA0001, 0x7FD20001]
-P = [0x7FB40001, 0x7F440001]
+Q = [
+    0x7FFFFF61, 0x7FFFFE01, 0x7FFFFCC1, 0x7FFFFAA1, 0x7FFFF9E1,
+    0x7FFFF8C1, 0x7FFFF541, 0x7FFFF441, 0x7FFFF261, 0x7FFFF181,
+    0x7FFFF081, 0x7FFFEFC1, 0x7FFFEF41, 0x7FFFECC1, 0x7FFFEBE1,
+    0x7FFFEA21, 0x7FFFEA01, 0x7FFFE9C1, 0x7FFFE7E1, 0x7FFFE701,
+    0x7FFFE5A1, 0x7FFFE521, 0x7FFFE3C1, 0x7FFFE361, 0x7FFFE101,
+]
+P = [0x7FFFE061, 0x7FFFE041, 0x7FFFDF21, 0x7FFFDDC1, 0x7FFFDCE1]
 for q in Q + P:
     ROOTS_UNITY[(16, q)] = find_psi(q, 16)
 
@@ -118,8 +124,8 @@ def test_mult(ctx: CryptoContext):
         os.makedirs("temp", exist_ok=True)
         # msg1 = np.arange(0,8)
         # msg2 = np.arange(0,8)
-        msg1 = np.random.randint(0, np.iinfo(np.int32).max, size=8)
-        msg2 = np.random.randint(0, np.iinfo(np.int32).max, size=8)
+        msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=8)
+        msg2 = np.random.randint(0, np.iinfo(np.int16).max, size=8)
 
         ciphertext = ctx.encrypt_msg(list(msg1), DEFAULT_SCALE)
         ciphertext_3 = ctx.encrypt_msg(list(msg2), DEFAULT_SCALE)
@@ -130,10 +136,7 @@ def test_mult(ctx: CryptoContext):
         save_mrp(ciphertext_3.polynomials[0], "temp/ct_b0.npz")
         save_mrp(ciphertext_3.polynomials[1], "temp/ct_b1.npz")
 
-        QP = ctx._params.q + ctx._params.p
-        sk_poly = MRP.from_coeffs(base=QP, coeffs=ctx._sk.value)
-
-        relin_key = gen_ksk(sk_poly * sk_poly, sk_poly, Q, P)
+        relin_key = gen_relin_key(ctx._sk, Q, P)
 
         for i, (ksk_0, ksk_1) in enumerate(relin_key):
             save_mrp(ksk_0, f"temp/relin_d{i}_0.npz")
@@ -141,19 +144,25 @@ def test_mult(ctx: CryptoContext):
 
         prog = parser.Program.parse_string(
             """
-        primes Digit0 = [0x7ffe0001, 0x7ff80001];
-        primes Digit1 = [0x7fea0001, 0x7fd20001];
-        primes Q = Digit0||Digit1;
-        primes P = [0x7fb40001, 0x7f440001];
+        primes Digit0 = [0x7FFFFF61, 0x7FFFFE01, 0x7FFFFCC1, 0x7FFFFAA1, 0x7FFFF9E1];
+        primes Digit1 = [0x7FFFF8C1, 0x7FFFF541, 0x7FFFF441, 0x7FFFF261, 0x7FFFF181];
+        primes Digit2 = [0x7FFFF081, 0x7FFFEFC1, 0x7FFFEF41, 0x7FFFECC1, 0x7FFFEBE1];
+        primes Digit3 = [0x7FFFEA21, 0x7FFFEA01, 0x7FFFE9C1, 0x7FFFE7E1, 0x7FFFE701];
+        primes Digit4 = [0x7FFFE5A1, 0x7FFFE521, 0x7FFFE3C1, 0x7FFFE361, 0x7FFFE101];
+        primes Q = Digit0||Digit1||Digit2||Digit3||Digit4;
+        primes P = [0x7FFFE061, 0x7FFFE041, 0x7FFFDF21, 0x7FFFDDC1, 0x7FFFDCE1];
         primes QP = Q||P;
 
 
-        def KeySwitch(poly: MRP<u32, 1024, Q>, k00, k01, k10, k11) { 
+        def KeySwitch(poly: MRP<u32, 1024, Q>, k00, k01, k10, k11, k20, k21, k30, k31, k40, k41) { 
             var decomposed0 = BaseExtend(poly, Digit0, QP);
             var decomposed1 = BaseExtend(poly, Digit1, QP);
+            var decomposed2 = BaseExtend(poly, Digit2, QP);
+            var decomposed3 = BaseExtend(poly, Digit3, QP);
+            var decomposed4 = BaseExtend(poly, Digit4, QP);
 
-            var accumulator0 = decomposed0 * k00 + decomposed1 * k10;
-            var accumulator1 = decomposed0 * k01 + decomposed1 * k11;
+            var accumulator0 = decomposed0 * k00 + decomposed1 * k10 + decomposed2 * k20 + decomposed3 * k30 + decomposed4 * k40;
+            var accumulator1 = decomposed0 * k01 + decomposed1 * k11 + decomposed2 * k21 + decomposed3 * k31 + decomposed4 * k41;
 
             return [Rescale(accumulator0, P), Rescale(accumulator1, P)];
         }
@@ -173,13 +182,19 @@ def test_mult(ctx: CryptoContext):
             var relin_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d0_1.npz");
             var relin_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_0.npz");
             var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_1.npz");
+            var relin_d2_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d2_0.npz");
+            var relin_d2_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d2_1.npz");
+            var relin_d3_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d3_0.npz");
+            var relin_d3_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d3_1.npz");
+            var relin_d4_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d4_0.npz");
+            var relin_d4_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d4_1.npz");
 
-            var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1);
+            var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1, relin_d2_0, relin_d2_1, relin_d3_0, relin_d3_1, relin_d4_0, relin_d4_1);
             var ct_res_0 = prod0 + get(ks, 0);
             var ct_res_1 = prod1 + get(ks, 1);
             
-            var ct_res_0 = Rescale(ct_res_0,[0x7fd20001]);
-            var ct_res_1 = Rescale(ct_res_1,[0x7fd20001]);
+            var ct_res_0 = Rescale(ct_res_0,[0x7FFFE101]);
+            var ct_res_1 = Rescale(ct_res_1,[0x7FFFE101]);
             
             write_mrp_u32_1024_Q(ct_res_0,"temp/ct_res_0.npz");
             write_mrp_u32_1024_Q(ct_res_1,"temp/ct_res_1.npz");
@@ -191,8 +206,8 @@ def test_mult(ctx: CryptoContext):
         eval_main(prog, global_env)
         ct_res_0 = load_mrp("temp/ct_res_0.npz")
         ct_res_1 = load_mrp("temp/ct_res_1.npz")
-        rescaled_scale = DEFAULT_SCALE**2 / 0x7FD20001
-        decrypted_msg = ctx.decrypt_msg(Ciphertext(rescaled_scale, [ct_res_0, ct_res_1]))
+        rescaled_scale = DEFAULT_SCALE**2 / 0x7FFFE101
+        decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE, [ct_res_0, ct_res_1]))
         np.testing.assert_allclose(decrypted_msg, msg1 * msg2, rtol=1e-3, atol=1e-3)
     finally:
         shutil.rmtree("temp")

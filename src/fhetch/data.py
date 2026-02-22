@@ -16,11 +16,6 @@ def modulo(x, q):
         x -= (x > q // 2) * q
     return x
 
-def mul_reorder(lhs: Vector, rhs: Vector):
-    if isinstance(lhs.value[0], np.integer):
-        return rhs, lhs
-    return lhs, rhs
-
 @dataclass(frozen=True)
 class Scalar:
     # We use Python's arbitrary precision int for scalars in order to allow
@@ -113,11 +108,13 @@ class Vector:
             result = Vector(self.value * other)
         else:
             # Vector * Vector
-            lhs, rhs = mul_reorder(self, other)
-            result = Vector(lhs.value * rhs.value)
+            result = Vector(self.value * other.value)
         if q is not None:
             result = result % q
         return result
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def forward_ntt(self, q, rou):
         """Forward NTT function"""

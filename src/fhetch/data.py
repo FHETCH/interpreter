@@ -198,8 +198,6 @@ class MRP:
     
     def divq(self, q):
         Q = math.prod(q)
-        
-        
         not_int_q = self.base() - q
         q_inv = pow(Q, -1, math.prod(not_int_q))
         original = self.extract_base(not_int_q)
@@ -207,7 +205,6 @@ class MRP:
         to_sub = in_q.extend_base(not_int_q, True).extract_base(not_int_q)
 
         result = (original - to_sub).muls(q_inv)
-
         return result
             
         

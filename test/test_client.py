@@ -122,8 +122,6 @@ def test_mult(ctx: CryptoContext):
 
     try:
         os.makedirs("temp", exist_ok=True)
-        # msg1 = np.arange(0,8)
-        # msg2 = np.arange(0,8)
         msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=8)
         msg2 = np.random.randint(0, np.iinfo(np.int16).max, size=8)
 
@@ -206,7 +204,6 @@ def test_mult(ctx: CryptoContext):
         eval_main(prog, global_env)
         ct_res_0 = load_mrp("temp/ct_res_0.npz")
         ct_res_1 = load_mrp("temp/ct_res_1.npz")
-        rescaled_scale = DEFAULT_SCALE**2 / 0x7FFFE101
         decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE, [ct_res_0, ct_res_1]))
         np.testing.assert_allclose(decrypted_msg, msg1 * msg2, rtol=1e-3, atol=1e-3)
     finally:

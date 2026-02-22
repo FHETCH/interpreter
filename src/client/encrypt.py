@@ -27,8 +27,8 @@ def main():
         "-o",
         "--output",
         type=Path,
-        default="ct.npz",
-        help="Output path for Ciphertext (default: ct.npz)",
+        default="ct",
+        help="Output directory for Ciphertext (default: ct)",
     )
 
     args = parser.parse_args()
@@ -49,8 +49,11 @@ def main():
     ct = ctx.encrypt_msg(msg, DEFAULT_SCALE)
 
     # Save to disk using unified serialization
-    serialization.save_ciphertext(ct, args.output)
-    print(f"Ciphertext generated and saved to {args.output}")
+    args.output.mkdir(parents=True, exist_ok=True)
+    serialization.save_mrp(ct.polynomials[0], args.output / "ct0.npz")
+    serialization.save_mrp(ct.polynomials[1], args.output / "ct1.npz")
+    
+    print(f"Ciphertext generated and saved to {args.output}/ct0.npz and {args.output}/ct1.npz")
 
 
 if __name__ == "__main__":

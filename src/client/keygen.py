@@ -101,6 +101,9 @@ def main():
     params = Parameters(**params_dict)
     # Generate secret key
     sk = gen_sk(params)
+    # Save to disk
+    np.save(args.output / "sk.npy", sk.value)
+    
     #  # Create MRP sk from a vector based on the pt base
     qp = params.q+params.p
     sk_poly = MRP.from_coeffs(base = qp , coeffs=sk.value)
@@ -112,8 +115,6 @@ def main():
         save_mrp(ksk_0, args.output / f"relin_d{i}_0.npz")
         save_mrp(ksk_1, args.output / f"relin_d{i}_1.npz")
 
-    # Save to disk
-    np.save(args.output / "sk.npy", sk.value)
     print(f"Secret key generated and saved to {args.output}")
     
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import numpy as np
 from client.context import CryptoContext
-from client.crypto import Parameters
+from client.crypto import Ciphertext, Parameters
 from client import serialization
 from fhetch.data import Vector
 from fhetch.ntt import ROOTS_UNITY
@@ -33,7 +33,7 @@ def main():
     parser.add_argument(
         "ciphertext",
         type=Path,
-        help="Path to ciphertext file (.npz)"
+        help="Path to ciphertext directory (containing ct0.npz and ct1.npz)"
     )
     parser.add_argument(
         "-o", "--output",
@@ -54,11 +54,12 @@ def main():
     sk = np.load(args.sk)
     ctx = CryptoContext(params, Vector(sk))
     
-    # Load ciphertext using unified serialization
-    ct = serialization.load_ciphertext(args.ciphertext)
+    # Load ciphertext
+    ct0 = serialization.load_mrp(args.ciphertext / "ct0.npz")
+    ct1 = serialization.load_mrp(args.ciphertext / "ct1.npz")
     
     # Decrypt
-    decrypted_msg = ctx.decrypt_msg(ct)
+    decrypted_msg = ctx.decrypt_msg(cipher=Ciphertext(polynomials=[ct0,ct1],scale=DEFAULT_SCALE))
     
     # Save to disk as text file with numpy array
     np.savetxt(args.output, decrypted_msg, fmt='%.6f')

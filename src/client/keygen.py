@@ -7,6 +7,7 @@ from random import randint, shuffle, randbytes
 import numpy as np
 
 from client.crypto import Parameters
+from client.serialization import save_mrp
 from client.utils import find_psi, random_poly
 from fhetch.data import MRP, Vector
 from fhetch.ntt import ROOTS_UNITY
@@ -88,8 +89,8 @@ def main():
     parser.add_argument(
         "-o", "--output",
         type=Path,
-        default="secret_key.npy",
-        help="Output path for secret key (default: secret_key.npy)"
+        default="keys",
+        help="Output folder for keys (default: keys)"
     )
     
     args = parser.parse_args()
@@ -105,10 +106,14 @@ def main():
     sk_poly = MRP.from_coeffs(base = qp , coeffs=sk.value)
     
     ksk = gen_ksk(sk_poly,sk_poly*sk_poly,Q,P)
-    
-    
+
+    args.output.mkdir(parents=True, exist_ok=True)
+    for i, (ksk_0, ksk_1) in enumerate(ksk):
+        save_mrp(ksk_0, args.output / f"relin_d{i}_0.npz")
+        save_mrp(ksk_1, args.output / f"relin_d{i}_1.npz")
+
     # Save to disk
-    np.save(args.output, sk.value)
+    np.save(args.output / "sk.npy", sk.value)
     print(f"Secret key generated and saved to {args.output}")
     
 if __name__ == "__main__":

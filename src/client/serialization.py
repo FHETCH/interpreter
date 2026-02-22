@@ -34,7 +34,7 @@ def save_mrp(mrp: MRP, path: Union[str, Path]) -> None:
     # Create save dictionary with moduli and all limbs
     save_dict = {'moduli': moduli}
     for i, mod in enumerate(moduli):
-        save_dict[f'limb_{i}'] = mrp.values[mod].value
+        save_dict[f'limb_{i}'] = mrp.values[mod].value.astype(np.int64)
     
     np.savez(path, **save_dict)
 

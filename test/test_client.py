@@ -3,7 +3,7 @@ import numpy as np
 from client.context import CryptoContext, Parameters, decode, encode
 from client.crypto import Ciphertext
 from client.serialization import load_mrp, save_mrp
-from client.keygen import gen_sk
+from client.keygen import gen_ksk, gen_sk
 from client.utils import find_psi
 from fhetch import parser
 from fhetch.data import MRP, Vector
@@ -12,7 +12,7 @@ from fhetch.eval import eval_func, eval_globals, eval_main
 from fhetch.ntt import ROOTS_UNITY
 
 
-DEFAULT_SCALE = 2.0**29
+DEFAULT_SCALE = 2.0**31
 
 # Q = [0x10001, 0xC0001]
 # P = 0x120001
@@ -22,11 +22,10 @@ DEFAULT_SCALE = 2.0**29
 #     ROOTS_UNITY[(16, q)] = psi
 
 
-Q=[0x7ffe0001, 0x7ff80001, 0x7fea0001, 0x7fd20001]
-P=[0x7fb40001, 0x7f440001]
+Q = [0x7FFE0001, 0x7FF80001, 0x7FEA0001, 0x7FD20001]
+P = [0x7FB40001, 0x7F440001]
 for q in Q + P:
-    ROOTS_UNITY[(16, q)] = find_psi(q,16)
-
+    ROOTS_UNITY[(16, q)] = find_psi(q, 16)
 
 
 CUSTOM_PARAMETERS = Parameters(
@@ -41,7 +40,7 @@ CUSTOM_PARAMETERS = Parameters(
 @pytest.fixture
 def ctx():
     sk = gen_sk(CUSTOM_PARAMETERS)
-    return CryptoContext(params=CUSTOM_PARAMETERS,sk=sk)
+    return CryptoContext(params=CUSTOM_PARAMETERS, sk=sk)
 
 
 def test_encode_decode(ctx):
@@ -76,16 +75,17 @@ def test_encrypt_decrypt(ctx: CryptoContext):
     np.testing.assert_allclose(decrypted_msg, msg, rtol=1e-3, atol=1e-3)
 
 
-def test_add(ctx:CryptoContext):
+def test_add(ctx: CryptoContext):
     import os, shutil
+
     os.makedirs("temp", exist_ok=True)
     try:
         msg = np.arange(1, 9)
-        
+
         ciphertext = ctx.encrypt_msg(list(msg), DEFAULT_SCALE)
-        
-        save_mrp(ciphertext.polynomials[0],"temp/ct_0.npz")
-        save_mrp(ciphertext.polynomials[1],"temp/ct_1.npz")
+
+        save_mrp(ciphertext.polynomials[0], "temp/ct_0.npz")
+        save_mrp(ciphertext.polynomials[1], "temp/ct_1.npz")
 
         prog = parser.Program.parse_string(
             """
@@ -105,27 +105,37 @@ def test_add(ctx:CryptoContext):
         eval_main(prog, global_env)
         ct_res_0 = load_mrp("temp/ct_res_0.npz")
         ct_res_1 = load_mrp("temp/ct_res_1.npz")
-        decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE,[ct_res_0,ct_res_1]))
-        np.testing.assert_allclose(decrypted_msg, msg+msg, rtol=1e-3, atol=1e-3)
+        decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE, [ct_res_0, ct_res_1]))
+        np.testing.assert_allclose(decrypted_msg, msg + msg, rtol=1e-3, atol=1e-3)
     finally:
         shutil.rmtree("temp")
-        
-        
-def test_mult(ctx:CryptoContext):
+
+
+def test_mult(ctx: CryptoContext):
     import os, shutil
-    os.makedirs("temp", exist_ok=True)
+
     try:
+        os.makedirs("temp", exist_ok=True)
         msg = np.arange(1, 9)
         msg_3 = np.array([3 for _ in range(8)])
-        
+
         ciphertext = ctx.encrypt_msg(list(msg), DEFAULT_SCALE)
         ciphertext_3 = ctx.encrypt_msg(list(msg_3), DEFAULT_SCALE)
-        
-        save_mrp(ciphertext.polynomials[0],"temp/ct_0.npz")
-        save_mrp(ciphertext.polynomials[1],"temp/ct_1.npz")
-        
-        save_mrp(ciphertext.polynomials[0],"temp/ct3_0.npz")
-        save_mrp(ciphertext.polynomials[1],"temp/ct3_1.npz")
+
+        save_mrp(ciphertext.polynomials[0], "temp/ct_a0.npz")
+        save_mrp(ciphertext.polynomials[1], "temp/ct_a1.npz")
+
+        save_mrp(ciphertext_3.polynomials[0], "temp/ct_b0.npz")
+        save_mrp(ciphertext_3.polynomials[1], "temp/ct_b1.npz")
+
+        QP = ctx._params.q + ctx._params.p
+        sk_poly = MRP.from_coeffs(base=QP, coeffs=ctx._sk.value)
+
+        relin_key = gen_ksk(sk_poly * sk_poly, sk_poly, Q, P)
+
+        for i, (ksk_0, ksk_1) in enumerate(relin_key):
+            save_mrp(ksk_0, f"temp/relin_d{i}_0.npz")
+            save_mrp(ksk_1, f"temp/relin_d{i}_1.npz")
 
         prog = parser.Program.parse_string(
             """
@@ -147,24 +157,29 @@ def test_mult(ctx:CryptoContext):
         }
 
         def main() {
-            var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("ct_a0.npz");
-            var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("ct_a1.npz");
+            var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a0.npz");
+            var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a1.npz");
 
-            var ct_b0: MRP<u32, 1024, Q> = read("ct_b0.npz");
-            var ct_b1: MRP<u32, 1024, Q> = read("ct_b1.npz");
+            var ct_b0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b0.npz");
+            var ct_b1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b1.npz");
 
             var prod0 = ct_a0 * ct_b0;
             var prod1 = ct_a0 * ct_b1 + ct_a1 * ct_b0;
             var prod2 = ct_a1 * ct_b1;
 
-            var relin_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
-            var relin_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
-            var relin_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
-            var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_QP();
+            var relin_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d0_0.npz");
+            var relin_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d0_1.npz");
+            var relin_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_0.npz");
+            var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_1.npz");
 
             var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1);
-            write(prod0 + get(ks, 0));
-            write(prod1 + get(ks, 1));
+            var ct_res_0 = Rescale(prod0 + get(ks, 0),[0x7fd20001]);
+            var ct_res_1 = Rescale(prod1 + get(ks, 1),[0x7fd20001]);
+            //var ct_res_0 = prod0 + get(ks, 0);
+            //var ct_res_1 = prod1 + get(ks, 1);
+            
+            write_mrp_u32_1024_Q(ct_res_0,"temp/ct_res_0.npz");
+            write_mrp_u32_1024_Q(ct_res_1,"temp/ct_res_1.npz");
         }
         """
         ).program
@@ -173,7 +188,7 @@ def test_mult(ctx:CryptoContext):
         eval_main(prog, global_env)
         ct_res_0 = load_mrp("temp/ct_res_0.npz")
         ct_res_1 = load_mrp("temp/ct_res_1.npz")
-        decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE,[ct_res_0,ct_res_1]))
-        np.testing.assert_allclose(decrypted_msg, msg+msg, rtol=1e-3, atol=1e-3)
+        decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE, [ct_res_0, ct_res_1]))
+        np.testing.assert_allclose(decrypted_msg, msg * msg_3, rtol=1e-3, atol=1e-3)
     finally:
         shutil.rmtree("temp")

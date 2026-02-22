@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import prod
+import math
 
 import numpy as np
 
@@ -187,5 +188,23 @@ class MRP:
             for q in base
         }
         return MRP(self.values | new_base)
+    
     def degree(self):
         return len(next(iter(self.values.values())).value)
+    
+    def base(self):
+        return set(self.values.keys())
+    
+    def divq(self, p):
+        P = math.prod(p)
+        q = self.base() - p
+        p_inv = pow(P, -1, math.prod(q))
+        original = self.extract_base(q)
+        in_p = self.extract_base(p)
+        to_sub = in_p.extend_base(q, True).extract_base(q)
+
+        original = (original - to_sub).muls(p_inv)
+
+        return original
+            
+        

@@ -2,12 +2,14 @@ import sys
 
 import numpy as np
 
-from .data import Scalar, Vector
+from .data import MRP, Scalar, Vector
 from .fhetch_ast import Constant, ScalarLiteral, StringLiteral
 from .ntt import ROOTS_UNITY
-#TODO: import from client to interp seems a bit off
+
+# TODO: import from client to interp seems a bit off
 # Import serialization utilities for MRP I/O
 from client import serialization
+
 
 def builtin_write(obj):
     match obj:
@@ -16,7 +18,7 @@ def builtin_write(obj):
         case np.uint64():
             sys.stdout.buffer.write(obj.tobytes())
         case Vector(v):
-            if v.dtype.kind in ('u', 'i'):
+            if v.dtype.kind in ("u", "i"):
                 # optimization for vectors of scalars
                 sys.stdout.buffer.write(v.astype(np.int32).tobytes())
             else:
@@ -32,19 +34,21 @@ def builtin_write(obj):
 def builtin_print(obj):
     match obj:
         case Scalar(x):
-            print(x, end='')
+            print(x, end="")
         case Vector(v):
-            print('[', end='')
+            print("[", end="")
             for x in v:
                 builtin_print(x)
-                print(', ', end='')
-            print(']')
+                print(", ", end="")
+            print("]")
         case Constant(_, _, value):
             builtin_print(value)
         case other:
             print("Unknown type", type(other), file=sys.stderr)
             print(other)
 
+def builtin_get(vector:Vector,index:Scalar):
+    return vector.value[index.value]
 
 def builtin_add(lhs, rhs, q):
     assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
@@ -61,41 +65,56 @@ def builtin_sub(lhs, rhs, q):
 def builtin_mul(lhs, rhs, q):
     return lhs.mul(rhs, q.value)
 
+
 def builtin_set_rou(ring_dimension: Scalar, modulus: Scalar, rou: Scalar):
     """Set the global root of unity for this modulus"""
     assert ring_dimension.value > 0
     ROOTS_UNITY[(ring_dimension.value, modulus.value)] = rou.value
     return
 
+
 def builtin_ntt(lhs: Vector, q: Scalar):
     assert isinstance(lhs, Vector)
     return lhs.forward_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
+
 
 def builtin_intt(lhs: Vector, q: Scalar):
     assert isinstance(lhs, Vector)
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 
-#TODO: handle path as StringLiteral after merge of the strings pr
 def builtin_read_mrp_u32_1024_Q(path: StringLiteral):
     """Load a single MRP from disk for the Q modulus set.
-    
+
     Args:
         path: Path to the .npz file containing the MRP
-        
+
     Returns:
         The loaded MRP object
     """
     return serialization.load_mrp(path.value)
 
+
 def builtin_write_mrp_u32_1024_Q(mrp, path: StringLiteral):
     """Save a single MRP to disk for the Q modulus set.
-    
+
     Args:
         mrp: The MRP object to save
         path: Output file path (will be created/overwritten)
     """
     serialization.save_mrp(mrp, path.value)
+
+
+def builtin_base_extend(mrp:MRP, digit_base:Vector, full_base:Vector):
+    digit_base_set = set(int(x) for x in digit_base.value)
+    full_base_set = set(int(x) for x in full_base.value)
+    new_primes_set = full_base_set - digit_base_set 
+    return mrp.extract_base(digit_base_set).extend_base(new_primes_set,True)
+
+def builtin_rescale(mrp:MRP, p):
+    p = set(int(x) for x in p)
+    rescaled_p = mrp.divq(p)
+    return rescaled_p
 
 
 def default_global():
@@ -104,10 +123,13 @@ def default_global():
         "read_mrp_u32_1024_Q": builtin_read_mrp_u32_1024_Q,
         "write_mrp_u32_1024_Q": builtin_write_mrp_u32_1024_Q,
         "print": builtin_print,
+        "get":builtin_get,
         "sr_addp": builtin_add,
         "sr_subp": builtin_sub,
         "sr_mulp": builtin_mul,
         "sr_set_rou": builtin_set_rou,
         "sr_NTT": builtin_ntt,
         "sr_iNTT": builtin_intt,
+        "BaseExtend":builtin_base_extend,
+        "Rescale":builtin_rescale,
     }

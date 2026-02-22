@@ -108,10 +108,10 @@ def main():
     qp = params.q+params.p
     sk_poly = MRP.from_coeffs(base = qp , coeffs=sk.value)
     
-    ksk = gen_ksk(sk_poly,sk_poly*sk_poly,Q,P)
+    relin_key = gen_ksk(sk_poly,sk_poly*sk_poly,Q,P)
 
     args.output.mkdir(parents=True, exist_ok=True)
-    for i, (ksk_0, ksk_1) in enumerate(ksk):
+    for i, (ksk_0, ksk_1) in enumerate(relin_key):
         save_mrp(ksk_0, args.output / f"relin_d{i}_0.npz")
         save_mrp(ksk_1, args.output / f"relin_d{i}_1.npz")
 

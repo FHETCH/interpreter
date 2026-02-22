@@ -116,11 +116,13 @@ def test_mult(ctx: CryptoContext):
 
     try:
         os.makedirs("temp", exist_ok=True)
-        msg = np.arange(1, 9)
-        msg_3 = np.array([3 for _ in range(8)])
+        # msg1 = np.arange(0,8)
+        # msg2 = np.arange(0,8)
+        msg1 = np.random.randint(0, np.iinfo(np.int32).max, size=8)
+        msg2 = np.random.randint(0, np.iinfo(np.int32).max, size=8)
 
-        ciphertext = ctx.encrypt_msg(list(msg), DEFAULT_SCALE)
-        ciphertext_3 = ctx.encrypt_msg(list(msg_3), DEFAULT_SCALE)
+        ciphertext = ctx.encrypt_msg(list(msg1), DEFAULT_SCALE)
+        ciphertext_3 = ctx.encrypt_msg(list(msg2), DEFAULT_SCALE)
 
         save_mrp(ciphertext.polynomials[0], "temp/ct_a0.npz")
         save_mrp(ciphertext.polynomials[1], "temp/ct_a1.npz")
@@ -173,10 +175,11 @@ def test_mult(ctx: CryptoContext):
             var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_1.npz");
 
             var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1);
-            var ct_res_0 = Rescale(prod0 + get(ks, 0),[0x7fd20001]);
-            var ct_res_1 = Rescale(prod1 + get(ks, 1),[0x7fd20001]);
-            //var ct_res_0 = prod0 + get(ks, 0);
-            //var ct_res_1 = prod1 + get(ks, 1);
+            var ct_res_0 = prod0 + get(ks, 0);
+            var ct_res_1 = prod1 + get(ks, 1);
+            
+            var ct_res_0 = Rescale(ct_res_0,[0x7fd20001]);
+            var ct_res_1 = Rescale(ct_res_1,[0x7fd20001]);
             
             write_mrp_u32_1024_Q(ct_res_0,"temp/ct_res_0.npz");
             write_mrp_u32_1024_Q(ct_res_1,"temp/ct_res_1.npz");
@@ -188,7 +191,8 @@ def test_mult(ctx: CryptoContext):
         eval_main(prog, global_env)
         ct_res_0 = load_mrp("temp/ct_res_0.npz")
         ct_res_1 = load_mrp("temp/ct_res_1.npz")
-        decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE, [ct_res_0, ct_res_1]))
-        np.testing.assert_allclose(decrypted_msg, msg * msg_3, rtol=1e-3, atol=1e-3)
+        rescaled_scale = DEFAULT_SCALE**2 / 0x7FD20001
+        decrypted_msg = ctx.decrypt_msg(Ciphertext(rescaled_scale, [ct_res_0, ct_res_1]))
+        np.testing.assert_allclose(decrypted_msg, msg1 * msg2, rtol=1e-3, atol=1e-3)
     finally:
         shutil.rmtree("temp")

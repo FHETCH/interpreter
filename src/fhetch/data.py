@@ -165,6 +165,7 @@ class MRP:
             q_star = big_q // q
             q_hat = Scalar(pow(q_star, -1, q))
             vec = vec.inverse_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
+            vec = Vector(vec.value.astype(object))
             result += ((vec * q_hat) % q) * q_star
 
         if exact:
@@ -195,16 +196,18 @@ class MRP:
     def base(self):
         return set(self.values.keys())
     
-    def divq(self, p):
-        P = math.prod(p)
-        q = self.base() - p
-        p_inv = pow(P, -1, math.prod(q))
-        original = self.extract_base(q)
-        in_p = self.extract_base(p)
-        to_sub = in_p.extend_base(q, True).extract_base(q)
+    def divq(self, q):
+        Q = math.prod(q)
+        
+        
+        not_int_q = self.base() - q
+        q_inv = pow(Q, -1, math.prod(not_int_q))
+        original = self.extract_base(not_int_q)
+        in_q = self.extract_base(q)
+        to_sub = in_q.extend_base(not_int_q, True).extract_base(not_int_q)
 
-        original = (original - to_sub).muls(p_inv)
+        result = (original - to_sub).muls(q_inv)
 
-        return original
+        return result
             
         

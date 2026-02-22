@@ -111,10 +111,10 @@ def builtin_base_extend(mrp:MRP, digit_base:Vector, full_base:Vector):
     new_primes_set = full_base_set - digit_base_set 
     return mrp.extract_base(digit_base_set).extend_base(new_primes_set,True)
 
-def builtin_rescale(mrp:MRP, p):
-    p = set(int(x) for x in p)
-    rescaled_p = mrp.divq(p)
-    return rescaled_p
+def builtin_rescale(mrp:MRP, moduli):
+    q = set(int(x) for x in moduli)
+    rescaled_q = mrp.divq(q)
+    return rescaled_q
 
 
 def default_global():

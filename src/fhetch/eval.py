@@ -6,7 +6,7 @@ from .data import Vector, Scalar
 from .fhetch_ast import (
     Constant,
     BinaryOperation,
-    BinOp,
+    BinOp, StringLiteral,
     VectorLiteral,
     UnaryOperation,
     ScalarLiteral,
@@ -65,6 +65,8 @@ def eval_expr(expr, env, global_env, modulo=None) -> Scalar | Vector:
             else:
                 value = np.array(value, dtype=object)
             return Vector(value)
+        case StringLiteral(value):
+            return value
         case other:
             raise NotImplementedError(other)
 

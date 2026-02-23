@@ -143,6 +143,14 @@ class ScalarLiteral(Expression):
 
 
 @dataclass
+class StringLiteral(Expression):
+    value: str
+
+    def __repr__(self):
+        return f'"{self.value}"'
+
+
+@dataclass
 class VectorLiteral(Expression):
     value: list[Expression]
 

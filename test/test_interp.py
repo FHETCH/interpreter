@@ -2,6 +2,7 @@ from pytest import fixture
 
 import numpy as np
 from fhetch import parser
+from fhetch.fhetch_ast import StringLiteral
 from fhetch.data import Scalar, Vector
 from fhetch.eval import eval_globals, eval_func
 from fhetch.validate import check_name_collision, check_globals_types
@@ -35,5 +36,17 @@ def test_eval_func():
     """)[0]
     result = eval_func(func, Scalar(1), global_env={})
     assert result == Scalar(1)
+
+
+def test_string_literal_var():
+    func = parser.Function.parse_string("""
+    def foo() {
+        var s = "bar";
+        return s;
+    }
+    """)[0]
+    result = eval_func(func, global_env={})
+    assert isinstance(result, str)
+    assert result == "bar"
 
 

@@ -46,7 +46,7 @@ def test_string_literal_var():
     }
     """)[0]
     result = eval_func(func, global_env={})
-    assert isinstance(result, StringLiteral)
-    assert result.value == "bar"
+    assert isinstance(result, str)
+    assert result == "bar"
 
 

@@ -66,7 +66,7 @@ def eval_expr(expr, env, global_env, modulo=None) -> Scalar | Vector:
                 value = np.array(value, dtype=object)
             return Vector(value)
         case StringLiteral(value):
-            return expr
+            return value
         case other:
             raise NotImplementedError(other)
 

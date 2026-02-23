@@ -79,6 +79,12 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
+        # If `other` overflows the array's dtype, upcast to object to avoid silent wraparound.
+        if isinstance(other, int) and self.value.dtype != np.dtype(object):
+            try:
+                np.array(other, dtype=self.value.dtype)
+            except OverflowError:
+                return Vector(self.value.astype(object) * other)
         return Vector(self.value * other)
 
     def __mod__(self, other):
@@ -100,21 +106,8 @@ class Vector:
 
     # TODO: Add negate
 
-    def mul(self, other, q=None):
-        if isinstance(q, Scalar):
-            q = q.value
-        # Convert scalar to python int
-        if isinstance(other, Scalar):
-            other = other.value
-        # Vector * Scalar
-        if isinstance(other, np.integer | int):
-            result = Vector(self.value * other)
-        else:
-            # Vector * Vector
-            result = Vector(self.value * other.value)
-        if q is not None:
-            result = result % q
-        return result
+    def mul(self, other, q):
+        return (self * other) % q
     
     def __rmul__(self, other):
         return self.__mul__(other)

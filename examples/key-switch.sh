@@ -1,0 +1,3 @@
+uv run fhetch-keygen ...
+uv run python generate-random-msg.py --output msg1.json
+uv run fhetch example/key-swtich.fhetch

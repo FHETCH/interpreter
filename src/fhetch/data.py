@@ -180,7 +180,7 @@ class MRP:
     def extract_base(self, base: set[int]):
         return MRP({q: self.values[q] for q in base})
 
-    def reconstruct(self, exact: bool) -> Vector:
+    def reconstruct(self, exact: bool,signed:bool) -> Vector:
         degree = self.degree()
         for q in self.values.keys():
             if (degree, q) not in ROOTS_UNITY:
@@ -197,6 +197,9 @@ class MRP:
 
         if exact:
             result.value %= big_q
+            if signed:
+                result.value = np.where(result.value > big_q // 2, result.value - big_q, result.value)
+
         return result
 
     def extend_base(self, new_primes: set[int], exact: bool):
@@ -206,7 +209,7 @@ class MRP:
                 "Cannot extend to base that is already part of the MRP", common
             )
 
-        reconstructed = self.reconstruct(exact)
+        reconstructed = self.reconstruct(exact,signed=False)
         degree = len(reconstructed.value)
         for q in new_primes:
             if (degree, q) not in ROOTS_UNITY:

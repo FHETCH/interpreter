@@ -18,7 +18,7 @@ def gen_noise(moduli: list[int], degree: int, sigma=3.2):
     while len(coeffs) < degree:
         sample = rng.normal(scale=sigma, size=degree - len(coeffs)).round()
         good_idxs = np.abs(sample) <= 6 * sigma
-        coeffs.extend(sample[good_idxs])
+        coeffs.extend(int(x) for x in sample[good_idxs])
     return MRP.from_coeffs(moduli, coeffs)
 
 

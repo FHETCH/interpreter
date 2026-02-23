@@ -72,7 +72,7 @@ def ctx():
 def test_encode_decode(ctx):
     """Test that encoding and decoding a message returns the original message."""
     # Create a test message
-    msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+    msg = np.random.randint(0, np.iinfo(np.int16).max, size=ctx._params.slots)
 
     # Encrypt the message
     pt = encode(msg, ctx._params.scaling_factor(), ctx._params.moduli)

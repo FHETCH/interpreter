@@ -1,7 +1,8 @@
 from pytest import fixture
 
+import numpy as np
 from fhetch import parser
-from fhetch.data import Scalar
+from fhetch.data import Scalar, Vector
 from fhetch.eval import eval_globals, eval_func
 from fhetch.validate import check_name_collision, check_globals_types
 
@@ -34,3 +35,5 @@ def test_eval_func():
     """)[0]
     result = eval_func(func, Scalar(1), global_env={})
     assert result == Scalar(1)
+
+

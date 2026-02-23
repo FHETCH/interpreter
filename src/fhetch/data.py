@@ -25,44 +25,60 @@ class Scalar:
     value: int
 
     def __add__(self, other):
-        return Scalar(self.value + other.value)
+            if isinstance(other, Vector):
+                raise TypeError("Cannot add Vector to Scalar")
+            return Scalar(self.value + other.value)
 
     def __sub__(self, other):
+        if isinstance(other, Vector):
+            raise TypeError("Cannot Subtract Vector from Scalar")
         return Scalar(self.value - other.value)
 
     def __mul__(self, other):
+        if isinstance(other, Vector):
+            raise TypeError("Cannot Multiply Scalar with Vector")
         return Scalar(self.value * other.value)
 
     def __mod__(self, q):
         return Scalar(self.value % q.value)
 
     def add(self, other, q):
+        if isinstance(other, Vector):
+            return Vector(modulo(other.value + self.value, q.value))
         return Scalar(modulo(self.value + other.value, q.value))
 
     def sub(self, other, q):
+        if isinstance(other, Vector):
+            result = self.value - other.value
+            return Vector(modulo(result, q.value))
         return Scalar(modulo(self.value - other.value, q.value))
 
     def mul(self, other, q):
+        if isinstance(other, Vector):
+            return other.mul(self, q)
         return Scalar(modulo(self.value * other.value, q.value))
+    
+    # TODO: Add negate
 
 
 @dataclass
 class Vector:
     value: np.array
 
-    def __add__(self, other):
+    def __add__(self, other: Vector | Scalar | int):
+        if isinstance(other, int):
+            return Vector(self.value + other)
+        # if Vector or Scalar
         return Vector(self.value + other.value)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Vector | Scalar | int):
+        if isinstance(other, int):
+            return Vector(self.value - other)
+        # if Vector or Scalar
         return Vector(self.value - other.value)
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
-        if isinstance(other, int) and self.value.dtype != np.dtype(object):
-            try:
-                np.array(other, dtype=self.value.dtype)
-            except OverflowError:
-                return Vector(self.value.astype(object) * other)
         return Vector(self.value * other)
 
     def __mod__(self, other):
@@ -82,8 +98,26 @@ class Vector:
         result = (self.value - other.value) + underflow.astype(self.value.dtype) * q
         return Vector(result % q)
 
-    def mul(self, other, q):
-        return (self * other) % q
+    # TODO: Add negate
+
+    def mul(self, other, q=None):
+        if isinstance(q, Scalar):
+            q = q.value
+        # Convert scalar to python int
+        if isinstance(other, Scalar):
+            other = other.value
+        # Vector * Scalar
+        if isinstance(other, np.integer | int):
+            result = Vector(self.value * other)
+        else:
+            # Vector * Vector
+            result = Vector(self.value * other.value)
+        if q is not None:
+            result = result % q
+        return result
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def forward_ntt(self, q, rou):
         """Forward NTT function"""
@@ -174,19 +208,21 @@ class MRP:
             result.value = np.where(result.value > big_q // 2, result.value - big_q, result.value)
         return result
 
-    def extend_base(self, base: set[int], exact: bool):
-        common = set(self.values.keys()) & base
+    def extend_base(self, new_primes: set[int], exact: bool):
+        common = set(self.values.keys()) & new_primes
         if common:
-            raise ValueError("Cannot extend to base that is already part of the MRP", common)
+            raise ValueError(
+                "Cannot extend to base that is already part of the MRP", common
+            )
 
         reconstructed = self.reconstruct(exact)
         degree = len(reconstructed.value)
-        for q in base:
+        for q in new_primes:
             if (degree, q) not in ROOTS_UNITY:
                 raise RuntimeError("Missing root of unity for (degree, q): ", degree, q)
         new_base = {
             q: reconstructed.forward_ntt(Scalar(q), rou=ROOTS_UNITY[degree, q])
-            for q in base
+            for q in new_primes
         }
         return MRP(self.values | new_base)
     

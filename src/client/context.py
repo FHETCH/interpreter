@@ -3,7 +3,7 @@ from client.crypto import Parameters
 from client.keygen import gen_noise
 from client.utils import random_poly
 from fhetch.data import MRP, Vector
-from client.encode import embedding, unpacking
+from client.encode import special_ifft, special_fft
 
 
 class CryptoContext:
@@ -31,11 +31,11 @@ class CryptoContext:
 
 
 def encode(msg: list[int], scale, base: list[int]) -> MRP:
-    coeffs = embedding(msg, scale)
+    coeffs = special_ifft(msg, scale)
     poly = MRP.from_coeffs(base, coeffs)
     return poly
 
 
 def decode(pt: MRP, scale: int) -> np.array:
     p = pt.reconstruct(exact=True).value
-    return unpacking(list(p), scale)
+    return special_fft(list(p), scale)

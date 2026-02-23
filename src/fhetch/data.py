@@ -14,7 +14,7 @@ from .ntt import _nb_theory_scratchpad, _number_theoretic_transform, ROOTS_UNITY
 def modulo(x, q):
     x %= q
     if x.dtype == np.int64:
-        x -= (x > q//2) * q
+        x -= (x > q // 2) * q
     return x
 
 
@@ -197,8 +197,6 @@ class MRP:
 
         if exact:
             result.value %= big_q
-            # Center the result around 0: values > big_q/2 become negative
-            result.value = np.where(result.value > big_q // 2, result.value - big_q, result.value)
         return result
 
     def extend_base(self, new_primes: set[int], exact: bool):
@@ -231,7 +229,7 @@ class MRP:
         q_inv = pow(Q, -1, math.prod(not_int_q))
         original = self.extract_base(not_int_q)
         in_q = self.extract_base(q)
-        to_sub = in_q.extend_base(not_int_q, True).extract_base(not_int_q)
+        to_sub = in_q.extend_base(not_int_q, exact=False).extract_base(not_int_q)
 
         result = (original - to_sub).muls(q_inv)
         return result

@@ -45,3 +45,5 @@ class Parameters:
             extras = k - len(self.p)
             result *= prod(self.q[-extras:])
         return result
+    def scaling_factor(self):
+        return 2.0 ** self.q[0].bit_length()

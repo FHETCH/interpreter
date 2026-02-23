@@ -6,8 +6,6 @@ from client import serialization
 from fhetch.data import Vector
 from fhetch.ntt import ROOTS_UNITY
 
-DEFAULT_SCALE = 2.0**29
-
 
 def main():
     import argparse
@@ -33,8 +31,8 @@ def main():
     parser.add_argument(
         "-o", "--output",
         type=Path,
-        default="decrypted_msg.txt",
-        help="Output path for decrypted message (default: decrypted_msg.txt)"
+        default="decrypted_msg.npy",
+        help="Output path for decrypted message (default: decrypted_msg.npy)"
     )
     
     args = parser.parse_args()
@@ -56,10 +54,10 @@ def main():
     ct1 = serialization.load_mrp(args.ciphertext / "ct1.npz")
     
     # Decrypt
-    decrypted_msg = ctx.decrypt_msg(cipher=Ciphertext(polynomials=[ct0,ct1],scale=DEFAULT_SCALE))
+    decrypted_msg = ctx.decrypt_msg(cipher=Ciphertext(polynomials=[ct0,ct1],scale=ctx._params.scaling_factor()))
     
     # Save to disk as text file with numpy array
-    np.savetxt(args.output, decrypted_msg, fmt='%.6f')
+    np.save(args.output, decrypted_msg)
     
     print(f"Message decrypted and saved to {args.output}")
 

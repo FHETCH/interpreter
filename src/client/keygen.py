@@ -106,12 +106,13 @@ def main():
 
     # Generate secret key
     sk = gen_sk(params)
+    
     # Save to disk
+    args.output.mkdir(parents=True, exist_ok=True)
     np.save(args.output / "sk.npy", sk.value)
     
     relin_key = gen_relin_key(sk, params.q, params.p)
 
-    args.output.mkdir(parents=True, exist_ok=True)
     for i, (ksk_0, ksk_1) in enumerate(relin_key):
         save_mrp(ksk_0, args.output / f"relin_d{i}_0.npz")
         save_mrp(ksk_1, args.output / f"relin_d{i}_1.npz")

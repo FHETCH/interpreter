@@ -6,9 +6,6 @@ from client.utils import find_psi
 from fhetch.data import Vector
 from fhetch.ntt import ROOTS_UNITY
 
-DEFAULT_SCALE = 2.0**29
-
-
 def main():
     import argparse
     import json
@@ -43,7 +40,7 @@ def main():
     assert len(sk) == 2 * len(msg)
     ctx = CryptoContext(params, Vector(sk))
 
-    ct = ctx.encrypt_msg(msg, DEFAULT_SCALE)
+    ct = ctx.encrypt_msg(msg, ctx._params.scaling_factor())
 
     # Save to disk using unified serialization
     args.output.mkdir(parents=True, exist_ok=True)

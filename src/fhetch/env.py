@@ -94,6 +94,7 @@ def builtin_read_mrp_u32_1024_Q(path: StringLiteral,Q:Vector):
     """
     mrp = serialization.load_mrp(path.value)
     assert mrp.base() == set(x for x in Q.value)
+    assert mrp.degree() ==1024
     return mrp
 
 

@@ -12,34 +12,65 @@ from fhetch.eval import eval_func, eval_globals, eval_main
 from fhetch.ntt import ROOTS_UNITY
 
 
+
+# Q = [
+#     0x7FFFFF61, 0x7FFFFE01, 0x7FFFFCC1, 0x7FFFFAA1, 0x7FFFF9E1,
+#     0x7FFFF8C1, 0x7FFFF541, 0x7FFFF441, 0x7FFFF261, 0x7FFFF181,
+#     0x7FFFF081, 0x7FFFEFC1, 0x7FFFEF41, 0x7FFFECC1, 0x7FFFEBE1,
+#     0x7FFFEA21, 0x7FFFEA01, 0x7FFFE9C1, 0x7FFFE7E1, 0x7FFFE701,
+#     0x7FFFE5A1, 0x7FFFE521, 0x7FFFE3C1, 0x7FFFE361, 0x7FFFE101,
+# ]
+# P = [0x7FFFE061, 0x7FFFE041, 0x7FFFDF21, 0x7FFFDDC1, 0x7FFFDCE1]
+
 DEFAULT_SCALE = 2.0**31
-
-# Q = [0x10001, 0xC0001]
-# P = 0x120001
-# PSI = [2, 0xA27C, 0x31779]
-
-# for q, psi in zip(Q + [P], PSI):
-#     ROOTS_UNITY[(16, q)] = psi
-
-
 Q = [
-    0x7FFFFF61, 0x7FFFFE01, 0x7FFFFCC1, 0x7FFFFAA1, 0x7FFFF9E1,
-    0x7FFFF8C1, 0x7FFFF541, 0x7FFFF441, 0x7FFFF261, 0x7FFFF181,
-    0x7FFFF081, 0x7FFFEFC1, 0x7FFFEF41, 0x7FFFECC1, 0x7FFFEBE1,
-    0x7FFFEA21, 0x7FFFEA01, 0x7FFFE9C1, 0x7FFFE7E1, 0x7FFFE701,
-    0x7FFFE5A1, 0x7FFFE521, 0x7FFFE3C1, 0x7FFFE361, 0x7FFFE101,
+    2147473409,
+    2147389441,
+    2147387393,
+    2147377153,
+    2147358721,
+    2147352577,
+    2147346433,
+    2147338241,
+    2147309569,
+    2147297281,
+    2147295233,
+    2147239937,
+    2147235841,
+    2147217409,
+    2147205121,
+    2147196929,
+    2147178497,
+    2147100673,
+    2147082241,
+    2147074049,
+    2147051521,
+    2147043329,
+    2147039233,
+    2146988033,
+    2146963457,
 ]
-P = [0x7FFFE061, 0x7FFFE041, 0x7FFFDF21, 0x7FFFDDC1, 0x7FFFDCE1]
+
+P = [2146959361, 2146938881, 2146908161, 2146885633, 2146871297]
+
+
 for q in Q + P:
-    ROOTS_UNITY[(16, q)] = find_psi(q, 16)
+    # ROOTS_UNITY[(16, q)] = find_psi(q, 16)
+    ROOTS_UNITY[(1024, q)] = find_psi(q, 1024)
 
-
+# CUSTOM_PARAMETERS = Parameters(
+#     # under 32 bits moduli
+#     q=Q,
+#     p=P,
+#     log_n=4,
+#     log_slots=3,
+# )
 CUSTOM_PARAMETERS = Parameters(
     # under 32 bits moduli
     q=Q,
     p=P,
-    log_n=4,
-    log_slots=3,
+    log_n=10,
+    log_slots=9,
 )
 
 
@@ -122,8 +153,8 @@ def test_mult(ctx: CryptoContext):
 
     try:
         os.makedirs("temp", exist_ok=True)
-        msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=8)
-        msg2 = np.random.randint(0, np.iinfo(np.int16).max, size=8)
+        msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+        msg2 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
         ciphertext = ctx.encrypt_msg(list(msg1), DEFAULT_SCALE)
         ciphertext_3 = ctx.encrypt_msg(list(msg2), DEFAULT_SCALE)
@@ -142,13 +173,13 @@ def test_mult(ctx: CryptoContext):
 
         prog = parser.Program.parse_string(
             """
-        primes Digit0 = [0x7FFFFF61, 0x7FFFFE01, 0x7FFFFCC1, 0x7FFFFAA1, 0x7FFFF9E1];
-        primes Digit1 = [0x7FFFF8C1, 0x7FFFF541, 0x7FFFF441, 0x7FFFF261, 0x7FFFF181];
-        primes Digit2 = [0x7FFFF081, 0x7FFFEFC1, 0x7FFFEF41, 0x7FFFECC1, 0x7FFFEBE1];
-        primes Digit3 = [0x7FFFEA21, 0x7FFFEA01, 0x7FFFE9C1, 0x7FFFE7E1, 0x7FFFE701];
-        primes Digit4 = [0x7FFFE5A1, 0x7FFFE521, 0x7FFFE3C1, 0x7FFFE361, 0x7FFFE101];
+        primes Digit0 = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801, 0x7FFE6001, 0x7FFE1801];
+        primes Digit1 = [0x7FFE0001, 0x7FFDE801, 0x7FFDC801, 0x7FFD5801, 0x7FFD2801];
+        primes Digit2 = [0x7FFD2001, 0x7FFC4801, 0x7FFC3801, 0x7FFBF001, 0x7FFBC001];
+        primes Digit3 = [0x7FFBA001, 0x7FFB5801, 0x7FFA2801, 0x7FF9E001, 0x7FF9C001];
+        primes Digit4 = [0x7FF96801, 0x7FF94801, 0x7FF93801, 0x7FF87001, 0x7FF81001];
         primes Q = Digit0||Digit1||Digit2||Digit3||Digit4;
-        primes P = [0x7FFFE061, 0x7FFFE041, 0x7FFFDF21, 0x7FFFDDC1, 0x7FFFDCE1];
+        primes P = [0x7FF80001, 0x7FF7B001, 0x7FF73801, 0x7FF6E001, 0x7FF6A801];
         primes QP = Q||P;
 
 
@@ -191,8 +222,8 @@ def test_mult(ctx: CryptoContext):
             var ct_res_0 = prod0 + get(ks, 0);
             var ct_res_1 = prod1 + get(ks, 1);
             
-            var ct_res_0 = Rescale(ct_res_0,[0x7FFFE101]);
-            var ct_res_1 = Rescale(ct_res_1,[0x7FFFE101]);
+            var ct_res_0 = Rescale(ct_res_0,[0x7FF81001]);
+            var ct_res_1 = Rescale(ct_res_1,[0x7FF81001]);
             
             write_mrp_u32_1024_Q(ct_res_0,"temp/ct_res_0.npz");
             write_mrp_u32_1024_Q(ct_res_1,"temp/ct_res_1.npz");

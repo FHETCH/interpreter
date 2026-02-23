@@ -47,8 +47,10 @@ def builtin_print(obj):
             print("Unknown type", type(other), file=sys.stderr)
             print(other)
 
-def builtin_get(vector:Vector,index:Scalar):
+
+def builtin_get(vector: Vector, index: Scalar):
     return vector.value[index.value]
+
 
 def builtin_add(lhs, rhs, q):
     assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
@@ -83,7 +85,7 @@ def builtin_intt(lhs: Vector, q: Scalar):
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 
-def builtin_read_mrp_u32_1024_Q(path: StringLiteral,Q:Vector):
+def builtin_read_mrp_u32_1024_Q(path: str, Q: Vector):
     """Load a single MRP from disk for the Q modulus set.
 
     Args:
@@ -92,29 +94,30 @@ def builtin_read_mrp_u32_1024_Q(path: StringLiteral,Q:Vector):
     Returns:
         The loaded MRP object
     """
-    mrp = serialization.load_mrp(path.value)
+    mrp = serialization.load_mrp(path)
     assert mrp.base() == set(x for x in Q.value)
-    assert mrp.degree() ==1024
+    assert mrp.degree() == 1024
     return mrp
 
 
-def builtin_write_mrp_u32_1024_Q(mrp, path: StringLiteral):
+def builtin_write_mrp_u32_1024_Q(mrp, path: str):
     """Save a single MRP to disk for the Q modulus set.
 
     Args:
         mrp: The MRP object to save
         path: Output file path (will be created/overwritten)
     """
-    serialization.save_mrp(mrp, path.value)
+    serialization.save_mrp(mrp, path)
 
 
-def builtin_base_extend(mrp:MRP, digit_base:Vector, full_base:Vector):
+def builtin_base_extend(mrp: MRP, digit_base: Vector, full_base: Vector):
     digit_base_set = set(int(x) for x in digit_base.value)
     full_base_set = set(int(x) for x in full_base.value)
-    new_primes_set = full_base_set - digit_base_set 
-    return mrp.extract_base(digit_base_set).extend_base(new_primes_set,True)
+    new_primes_set = full_base_set - digit_base_set
+    return mrp.extract_base(digit_base_set).extend_base(new_primes_set, True)
 
-def builtin_rescale(mrp:MRP, moduli):
+
+def builtin_rescale(mrp: MRP, moduli):
     q = set(int(x) for x in moduli)
     rescaled_q = mrp.divq(q)
     return rescaled_q
@@ -126,13 +129,13 @@ def default_global():
         "read_mrp_u32_1024_Q": builtin_read_mrp_u32_1024_Q,
         "write_mrp_u32_1024_Q": builtin_write_mrp_u32_1024_Q,
         "print": builtin_print,
-        "get":builtin_get,
+        "get": builtin_get,
         "sr_addp": builtin_add,
         "sr_subp": builtin_sub,
         "sr_mulp": builtin_mul,
         "sr_set_rou": builtin_set_rou,
         "sr_NTT": builtin_ntt,
         "sr_iNTT": builtin_intt,
-        "BaseExtend":builtin_base_extend,
-        "Rescale":builtin_rescale,
+        "BaseExtend": builtin_base_extend,
+        "Rescale": builtin_rescale,
     }

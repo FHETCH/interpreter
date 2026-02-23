@@ -25,7 +25,7 @@ def get_roots(N: int):
     roots[3*N//2] = complex(0, -1)
     return rotGroup, roots
 
-def unpacking(coeffs, scale):
+def special_fft(coeffs, scale):
     n = len(coeffs) // 2
 
     values = np.array(bit_rev(coeffs), dtype=np.complex256) / scale
@@ -56,7 +56,7 @@ def unpacking(coeffs, scale):
     return [complex(m) for m in values]
 
 
-def embedding(message, scale):
+def special_ifft(message, scale):
     values = np.array(message, dtype=np.complex256)
     n = len(message)
     rotGroup, roots = get_roots(n * 2)

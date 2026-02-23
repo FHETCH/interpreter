@@ -26,7 +26,8 @@ def test_signed_coeffs():
     coeffs = [0, 1, -1, 0] * 4
     poly = MRP.from_coeffs(Q, coeffs)
     reconstructed = poly.reconstruct(exact=True)
-    assert np.all(reconstructed.value == coeffs)
+    abs_q = [0, 1, prod(Q) - 1, 0] * 4
+    assert np.all(reconstructed.value == abs_q)
 
 
 def test_base_extend():

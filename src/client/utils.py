@@ -1,17 +1,15 @@
-from math import prod
-
 import numpy as np
 from sympy import primitive_root
 
-from fhetch.data import MRP
+from fhetch.data import MRP, Vector
 
 
 def random_poly(base: list[int], degree: int) -> MRP:
-    Q = prod(base)
     rng = np.random.default_rng()
-    coeffs = rng.integers(0, next(iter(base)) ,size=degree)
-
-    return MRP.from_coeffs(base, coeffs)
+    return MRP({
+        q: Vector(rng.integers(0, q, size=degree))
+        for q in base
+    })
 
 
 def find_psi(q: int, n: int) -> int:

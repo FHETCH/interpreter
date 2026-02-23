@@ -166,26 +166,26 @@ def test_mult(ctx: CryptoContext):
         }
 
         def main() {
-            var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a0.npz");
-            var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a1.npz");
+            var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a0.npz",Q);
+            var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a1.npz",Q);
 
-            var ct_b0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b0.npz");
-            var ct_b1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b1.npz");
+            var ct_b0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b0.npz",Q);
+            var ct_b1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b1.npz",Q);
 
             var prod0 = ct_a0 * ct_b0;
             var prod1 = ct_a0 * ct_b1 + ct_a1 * ct_b0;
             var prod2 = ct_a1 * ct_b1;
 
-            var relin_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d0_0.npz");
-            var relin_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d0_1.npz");
-            var relin_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_0.npz");
-            var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_1.npz");
-            var relin_d2_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d2_0.npz");
-            var relin_d2_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d2_1.npz");
-            var relin_d3_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d3_0.npz");
-            var relin_d3_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d3_1.npz");
-            var relin_d4_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d4_0.npz");
-            var relin_d4_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d4_1.npz");
+            var relin_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d0_0.npz",QP);
+            var relin_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d0_1.npz",QP);
+            var relin_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_0.npz",QP);
+            var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d1_1.npz",QP);
+            var relin_d2_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d2_0.npz",QP);
+            var relin_d2_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d2_1.npz",QP);
+            var relin_d3_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d3_0.npz",QP);
+            var relin_d3_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d3_1.npz",QP);
+            var relin_d4_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d4_0.npz",QP);
+            var relin_d4_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/relin_d4_1.npz",QP);
 
             var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1, relin_d2_0, relin_d2_1, relin_d3_0, relin_d3_1, relin_d4_0, relin_d4_1);
             var ct_res_0 = prod0 + get(ks, 0);

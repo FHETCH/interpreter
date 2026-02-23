@@ -83,7 +83,7 @@ def builtin_intt(lhs: Vector, q: Scalar):
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 
-def builtin_read_mrp_u32_1024_Q(path: StringLiteral):
+def builtin_read_mrp_u32_1024_Q(path: StringLiteral,Q:Vector):
     """Load a single MRP from disk for the Q modulus set.
 
     Args:
@@ -92,7 +92,9 @@ def builtin_read_mrp_u32_1024_Q(path: StringLiteral):
     Returns:
         The loaded MRP object
     """
-    return serialization.load_mrp(path.value)
+    mrp = serialization.load_mrp(path.value)
+    assert mrp.base() == set(x for x in Q.value)
+    return mrp
 
 
 def builtin_write_mrp_u32_1024_Q(mrp, path: StringLiteral):

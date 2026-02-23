@@ -1,19 +1,6 @@
 from dataclasses import dataclass
 from math import prod
 
-from fhetch.data import MRP
-
-
-@dataclass
-class Plaintext:
-    scale: int
-    poly: MRP
-
-@dataclass
-class Ciphertext:
-    scale: int
-    polynomials: list[MRP]
-
 
 @dataclass
 class Parameters:

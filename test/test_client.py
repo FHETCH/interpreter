@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 from client.context import CryptoContext, Parameters, decode, encode
-from client.crypto import Ciphertext
 from client.serialization import load_mrp, save_mrp
 from client.keygen import gen_relin_key, gen_sk
 from client.utils import find_psi
@@ -9,10 +8,6 @@ from fhetch import parser
 from fhetch.env import default_global
 from fhetch.eval import eval_globals, eval_main
 from fhetch.ntt import ROOTS_UNITY
-
-
-DEFAULT_SCALE = 2.0**31
-
 
 Q = [
     0x7FFFD801,
@@ -80,7 +75,7 @@ def test_encode_decode(ctx):
     msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
     # Encrypt the message
-    pt = encode(msg, DEFAULT_SCALE, ctx._params.moduli)
+    pt = encode(msg, ctx._params.scaling_factor(), ctx._params.moduli)
 
     # Decrypt the ciphertext
     dec_msg = decode(pt)
@@ -96,7 +91,7 @@ def test_encrypt_decrypt(ctx: CryptoContext):
     msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
     # Encrypt the message
-    ciphertext = ctx.encrypt_msg(msg, DEFAULT_SCALE)
+    ciphertext = ctx.encrypt_msg(msg)
 
     # Decrypt the ciphertext
     decrypted_msg = ctx.decrypt_msg(ciphertext)
@@ -109,10 +104,10 @@ def test_encrypt_decrypt(ctx: CryptoContext):
 def test_add(ctx: CryptoContext, tmp_path):
     msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
-    ciphertext = ctx.encrypt_msg(list(msg), DEFAULT_SCALE)
+    ciphertext = ctx.encrypt_msg(list(msg), ctx._params.scaling_factor())
 
-    save_mrp(ciphertext.polynomials[0], str(tmp_path / "ct_0.npz"))
-    save_mrp(ciphertext.polynomials[1], str(tmp_path / "ct_1.npz"))
+    save_mrp(ciphertext[0], str(tmp_path / "ct_0.npz"))
+    save_mrp(ciphertext[1], str(tmp_path / "ct_1.npz"))
 
     prog = parser.Program.parse_string(
         f"""
@@ -132,7 +127,7 @@ def test_add(ctx: CryptoContext, tmp_path):
     eval_main(prog, global_env)
     ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
-    decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE, [ct_res_0, ct_res_1]))
+    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1])
     np.testing.assert_allclose(decrypted_msg, msg + msg, rtol=1e-3, atol=1e-3)
 
 
@@ -140,14 +135,14 @@ def test_mult(ctx: CryptoContext, tmp_path):
     msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
     msg2 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
-    ciphertext = ctx.encrypt_msg(list(msg1), DEFAULT_SCALE)
-    ciphertext_3 = ctx.encrypt_msg(list(msg2), DEFAULT_SCALE)
+    ct_a = ctx.encrypt_msg(list(msg1))
+    ct_b = ctx.encrypt_msg(list(msg2))
 
-    save_mrp(ciphertext.polynomials[0], str(tmp_path / "ct_a0.npz"))
-    save_mrp(ciphertext.polynomials[1], str(tmp_path / "ct_a1.npz"))
+    save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
+    save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
 
-    save_mrp(ciphertext_3.polynomials[0], str(tmp_path / "ct_b0.npz"))
-    save_mrp(ciphertext_3.polynomials[1], str(tmp_path / "ct_b1.npz"))
+    save_mrp(ct_b[0], str(tmp_path / "ct_b0.npz"))
+    save_mrp(ct_b[1], str(tmp_path / "ct_b1.npz"))
 
     relin_key = gen_relin_key(ctx._sk, Q, P)
 
@@ -210,5 +205,5 @@ def test_mult(ctx: CryptoContext, tmp_path):
     eval_main(prog, global_env)
     ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
-    decrypted_msg = ctx.decrypt_msg(Ciphertext(DEFAULT_SCALE, [ct_res_0, ct_res_1]))
+    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1])
     np.testing.assert_allclose(decrypted_msg, msg1 * msg2, rtol=1e-3, atol=1e-3)

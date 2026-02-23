@@ -40,12 +40,12 @@ def main():
     assert len(sk) == 2 * len(msg)
     ctx = CryptoContext(params, Vector(sk))
 
-    ct = ctx.encrypt_msg(msg, ctx._params.scaling_factor())
+    ct = ctx.encrypt_msg(msg)
 
     # Save to disk using unified serialization
     args.output.mkdir(parents=True, exist_ok=True)
-    serialization.save_mrp(ct.polynomials[0], args.output / "ct0.npz")
-    serialization.save_mrp(ct.polynomials[1], args.output / "ct1.npz")
+    serialization.save_mrp(ct[0], args.output / "ct0.npz")
+    serialization.save_mrp(ct[1], args.output / "ct1.npz")
     
     print(f"Ciphertext generated and saved to {args.output}/ct0.npz and {args.output}/ct1.npz")
 

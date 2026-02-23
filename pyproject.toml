@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 fhetch = "fhetch.main:main"
+fhetch-keygen = "client.keygen:main"
 
 [project.urls]
 Homepage = "https://fhetch.org/"

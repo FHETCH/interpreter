@@ -3,22 +3,11 @@ from inspect import isfunction
 import numpy as np
 
 from .data import Vector, Scalar
-from .fhetch_ast import (
-    Constant,
-    BinaryOperation,
-    BinOp,
-    VectorLiteral,
-    UnaryOperation,
-    ScalarLiteral,
-    VarAccess,
-    VarDefinition,
-    Return,
-    FunctionCall,
-    CallStatement,
-)
+from .fhetch_ast import Constant, BinaryOperation, BinOp, StringLiteral, VectorLiteral, UnaryOperation, ScalarLiteral, VarAccess, \
+    VarDefinition, Return, FunctionCall, CallStatement
 
 
-def eval_expr(expr, env, global_env, modulo=None) -> Scalar | Vector:
+def eval_expr(expr, env, global_env):
     match expr:
         case ScalarLiteral(value):
             return Scalar(value)
@@ -30,16 +19,15 @@ def eval_expr(expr, env, global_env, modulo=None) -> Scalar | Vector:
             else:
                 raise NameError("Name not defined:", var)
         case BinaryOperation(op, lhs, rhs):
-            lhs = eval_expr(lhs, env, global_env, modulo)
-            rhs = eval_expr(rhs, env, global_env, modulo)
+            lhs = eval_expr(lhs, env, global_env)
+            rhs = eval_expr(rhs, env, global_env)
             match op:
                 case BinOp.Add:
-
-                    return lhs + rhs if modulo is None else lhs.add(rhs, modulo)
+                    return lhs + rhs
                 case BinOp.Sub:
-                    return lhs - rhs if modulo is None else lhs.sub(rhs, modulo)
+                    return lhs - rhs
                 case BinOp.Mul:
-                    return lhs * rhs if modulo is None else lhs.mul(rhs, modulo)
+                    return lhs * rhs
                 case BinOp.Concat:
                     assert isinstance(lhs, Vector) and isinstance(rhs, Vector)
                     return Vector(np.concatenate((lhs.value, rhs.value)))
@@ -59,12 +47,14 @@ def eval_expr(expr, env, global_env, modulo=None) -> Scalar | Vector:
             args = [eval_expr(expr, env, global_env) for expr in args]
             return eval_func(func, *args, global_env=global_env)
         case VectorLiteral(vec):
-            value = [eval_expr(sub_expr, env, global_env, modulo) for sub_expr in vec]
+            value = [eval_expr(sub_expr, env, global_env) for sub_expr in vec]
             if all(isinstance(elem, Scalar) for elem in value):
                 value = np.array([elem.value for elem in value], dtype=np.uint64)
             else:
                 value = np.array(value, dtype=object)
             return Vector(value)
+        case StringLiteral(value):
+            return expr
         case other:
             raise NotImplementedError(other)
 
@@ -90,10 +80,7 @@ def eval_func(func, *args, global_env):
     for statement in func.body:
         match statement:
             case VarDefinition(name, _type, expr):
-                q = statement.modulus
-                if q is not None:
-                    q = eval_expr(q, env, global_env)
-                env[name] = eval_expr(expr, env, global_env, q)
+                env[name] = eval_expr(expr, env, global_env)
             case CallStatement(call):
                 eval_expr(call, env, global_env)
             case Return(expr):

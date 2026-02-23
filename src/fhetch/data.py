@@ -236,7 +236,7 @@ class MRP:
         q_inv = pow(Q, -1, math.prod(not_int_q))
         original = self.extract_base(not_int_q)
         in_q = self.extract_base(q)
-        to_sub = in_q.extend_base(not_int_q, True).extract_base(not_int_q)
+        to_sub = in_q.extend_base(not_int_q, exact=False).extract_base(not_int_q)
 
         result = (original - to_sub).muls(q_inv)
         return result

@@ -16,11 +16,11 @@ def _eval_const_scalar(parse_result):
         case [lhs, "-", rhs]:
             lhs = _eval_const_scalar(lhs)
             rhs = _eval_const_scalar(rhs)
-            return lhs + rhs
+            return lhs - rhs
         case [lhs, "*", rhs]:
             lhs = _eval_const_scalar(lhs)
             rhs = _eval_const_scalar(rhs)
-            return lhs + rhs
+            return lhs * rhs
         case [lhs, "<<", rhs]:
             lhs = _eval_const_scalar(lhs)
             rhs = _eval_const_scalar(rhs)

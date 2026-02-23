@@ -1,17 +1,12 @@
 import numpy as np
 from client.context import CryptoContext
 from client.crypto import Ciphertext, Parameters
+from client.utils import find_psi
 from client import serialization
 from fhetch.data import Vector
 from fhetch.ntt import ROOTS_UNITY
 
 DEFAULT_SCALE = 2.0**29
-
-Q = [0x10001, 0xC0001]
-P = 0x120001
-PSI = [2, 0xA27C, 0x31779]
-for q, psi in zip(Q + [P], PSI):
-    ROOTS_UNITY[(16, q)] = psi
 
 
 def main():
@@ -49,7 +44,9 @@ def main():
         params_dict = json.load(f)
     
     params = Parameters(**params_dict)
-    
+    for q in params.moduli:
+        ROOTS_UNITY[(params.degree, q)] = find_psi(q, params.degree)
+
     # Load secret key
     sk = np.load(args.sk)
     ctx = CryptoContext(params, Vector(sk))

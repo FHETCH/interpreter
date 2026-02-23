@@ -16,17 +16,6 @@ from fhetch.ntt import ROOTS_UNITY
 
 DEFAULT_SCALE = 2.0**29
 
-Q=[
-    0x7FFFFF61, 0x7FFFFE01, 0x7FFFFCC1, 0x7FFFFAA1, 0x7FFFF9E1,
-    0x7FFFF8C1, 0x7FFFF541, 0x7FFFF441, 0x7FFFF261, 0x7FFFF181,
-    0x7FFFF081, 0x7FFFEFC1, 0x7FFFEF41, 0x7FFFECC1, 0x7FFFEBE1,
-    0x7FFFEA21, 0x7FFFEA01, 0x7FFFE9C1, 0x7FFFE7E1, 0x7FFFE701,
-    0x7FFFE5A1, 0x7FFFE521, 0x7FFFE3C1, 0x7FFFE361, 0x7FFFE101,
-]
-P=[0x7FFFE061, 0x7FFFE041, 0x7FFFDF21, 0x7FFFDDC1, 0x7FFFDCE1]
-for q in Q + P:
-    ROOTS_UNITY[(16, q)] = find_psi(q,16)
-
 
 def gen_noise(moduli: list[int], degree: int, sigma=3.2):
     coeffs = []
@@ -110,14 +99,17 @@ def main():
      # Load and deserialize parameters
     with open(args.params_json, 'r') as f:
         params_dict = json.load(f)
-    
+
     params = Parameters(**params_dict)
+    for q in params.moduli:
+        ROOTS_UNITY[(params.degree, q)] = find_psi(q, params.degree)
+
     # Generate secret key
     sk = gen_sk(params)
     # Save to disk
     np.save(args.output / "sk.npy", sk.value)
     
-    relin_key = gen_relin_key(sk, Q, P)
+    relin_key = gen_relin_key(sk, params.q, params.p)
 
     args.output.mkdir(parents=True, exist_ok=True)
     for i, (ksk_0, ksk_1) in enumerate(relin_key):

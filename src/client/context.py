@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-from math import e, pi, prod
 import numpy as np
 from client.crypto import Parameters
 from client.keygen import gen_noise

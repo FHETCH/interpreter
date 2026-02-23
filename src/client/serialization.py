@@ -1,8 +1,4 @@
-"""Serialization and deserialization utilities for MRP and Ciphertext objects.
-
-This module provides a unified interface for saving and loading:
-- Individual MRP (Multi-Residue Polynomial) objects
-- Complete Ciphertext objects (containing multiple MRPs + scale)
+"""Serialization and deserialization utilities for MRP objects.
 
 All functions use numpy's .npz format for efficient storage of multiple arrays.
 """
@@ -12,7 +8,6 @@ from pathlib import Path
 from typing import Union
 
 from fhetch.data import MRP, Vector
-from client.crypto import Ciphertext
 
 
 def save_mrp(mrp: MRP, path: Union[str, Path]) -> None:

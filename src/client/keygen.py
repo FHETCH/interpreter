@@ -1,8 +1,7 @@
 # Key generation functions
-import __future__ 
 from math import prod
 import math
-from random import randint, shuffle, randbytes
+from random import randint, shuffle
 
 import numpy as np
 
@@ -11,10 +10,6 @@ from client.serialization import save_mrp
 from client.utils import find_psi, random_poly
 from fhetch.data import MRP, Vector
 from fhetch.ntt import ROOTS_UNITY
-
-
-
-DEFAULT_SCALE = 2.0**29
 
 
 def gen_noise(moduli: list[int], degree: int, sigma=3.2):

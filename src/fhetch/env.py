@@ -3,7 +3,7 @@ import sys
 import numpy as np
 
 from .data import MRP, Scalar, Vector
-from .fhetch_ast import Constant, ScalarLiteral, StringLiteral
+from .fhetch_ast import Constant, StringLiteral
 from .ntt import ROOTS_UNITY
 
 # TODO: import from client to interp seems a bit off

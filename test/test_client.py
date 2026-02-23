@@ -78,7 +78,7 @@ def test_encode_decode(ctx):
     pt = encode(msg, ctx._params.scaling_factor(), ctx._params.moduli)
 
     # Decrypt the ciphertext
-    dec_msg = decode(pt)
+    dec_msg = decode(pt,ctx._params.scaling_factor())
 
     # Check that the decrypted message matches the original
     # Use allclose for floating point comparison with tolerance
@@ -104,7 +104,7 @@ def test_encrypt_decrypt(ctx: CryptoContext):
 def test_add(ctx: CryptoContext, tmp_path):
     msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
-    ciphertext = ctx.encrypt_msg(list(msg), ctx._params.scaling_factor())
+    ciphertext = ctx.encrypt_msg(list(msg))
 
     save_mrp(ciphertext[0], str(tmp_path / "ct_0.npz"))
     save_mrp(ciphertext[1], str(tmp_path / "ct_1.npz"))

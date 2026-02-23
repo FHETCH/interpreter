@@ -32,7 +32,7 @@ uv run fhetch-decrypt params_1024.json temp/keys/sk.npy temp/ct_res -o temp/decr
 
 # Step 6: Verify the result
 echo "==> Verifying result..."
-uv run python verify-results.py temp/msg1.json temp/msg2.json temp/decrypted.npy
+uv run python verify_results.py temp/msg1.json temp/msg2.json temp/decrypted.npy
 
 # Cleanup
 echo ""

@@ -25,9 +25,9 @@ class Scalar:
     value: int
 
     def __add__(self, other):
-            if isinstance(other, Vector):
-                raise TypeError("Cannot add Vector to Scalar")
-            return Scalar(self.value + other.value)
+        if isinstance(other, Vector):
+            raise TypeError("Cannot add Vector to Scalar")
+        return Scalar(self.value + other.value)
 
     def __sub__(self, other):
         if isinstance(other, Vector):

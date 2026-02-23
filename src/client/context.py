@@ -27,7 +27,7 @@ class CryptoContext:
     def decrypt_msg(self, cipher: tuple[MRP, MRP]) -> np.array:
         b, a = cipher
         sk = MRP.from_coeffs(a.values.keys(), self._sk.value)
-        return decode(b + a * sk,self._params.scaling_factor())
+        return decode(b + a * sk, self._params.scaling_factor())
 
 
 def encode(msg: list[int], scale, base: list[int]) -> MRP:
@@ -37,5 +37,5 @@ def encode(msg: list[int], scale, base: list[int]) -> MRP:
 
 
 def decode(pt: MRP, scale: int) -> np.array:
-    p = pt.reconstruct(exact=True).value
+    p = pt.reconstruct(exact=True, signed=True).value
     return special_fft(list(p), scale)

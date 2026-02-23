@@ -3,58 +3,62 @@ import numpy as np
 from client.context import CryptoContext, Parameters, decode, encode
 from client.crypto import Ciphertext
 from client.serialization import load_mrp, save_mrp
-from client.keygen import gen_ksk, gen_relin_key, gen_sk
+from client.keygen import gen_relin_key, gen_sk
 from client.utils import find_psi
 from fhetch import parser
-from fhetch.data import MRP, Vector
 from fhetch.env import default_global
-from fhetch.eval import eval_func, eval_globals, eval_main
+from fhetch.eval import eval_globals, eval_main
 from fhetch.ntt import ROOTS_UNITY
 
 
 DEFAULT_SCALE = 2.0**31
+
+
 Q = [
-    2147473409,
-    2147389441,
-    2147387393,
-    2147377153,
-    2147358721,
-    2147352577,
-    2147346433,
-    2147338241,
-    2147309569,
-    2147297281,
-    2147295233,
-    2147239937,
-    2147235841,
-    2147217409,
-    2147205121,
-    2147196929,
-    2147178497,
-    2147100673,
-    2147082241,
-    2147074049,
-    2147051521,
-    2147043329,
-    2147039233,
-    2146988033,
-    2146963457,
+    0x7FFFD801,
+    0x7FFE9001,
+    0x7FFE8801,
+    0x7FFE6001,
+    0x7FFE1801,
+    0x7FFE0001,
+    0x7FFDE801,
+    0x7FFDC801,
+    0x7FFD5801,
+    0x7FFD2801,
+    0x7FFD2001,
+    0x7FFC4801,
+    0x7FFC3801,
+    0x7FFBF001,
+    0x7FFBC001,
+    0x7FFBA001,
+    0x7FFB5801,
+    0x7FFA2801,
+    0x7FF9E001,
+    0x7FF9C001,
+    0x7FF96801,
+    0x7FF94801,
+    0x7FF93801,
+    0x7FF87001,
+    0x7FF81001,
 ]
 
-P = [2146959361, 2146938881, 2146908161, 2146885633, 2146871297]
+P = [0x7FF80001, 0x7FF7B001, 0x7FF73801, 0x7FF6E001, 0x7FF6A801]
 
+
+FHETCH_PRIMES = """
+    primes Digit0 = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801, 0x7FFE6001, 0x7FFE1801];
+    primes Digit1 = [0x7FFE0001, 0x7FFDE801, 0x7FFDC801, 0x7FFD5801, 0x7FFD2801];
+    primes Digit2 = [0x7FFD2001, 0x7FFC4801, 0x7FFC3801, 0x7FFBF001, 0x7FFBC001];
+    primes Digit3 = [0x7FFBA001, 0x7FFB5801, 0x7FFA2801, 0x7FF9E001, 0x7FF9C001];
+    primes Digit4 = [0x7FF96801, 0x7FF94801, 0x7FF93801, 0x7FF87001, 0x7FF81001];
+    primes Q = Digit0||Digit1||Digit2||Digit3||Digit4;
+    primes P = [0x7FF80001, 0x7FF7B001, 0x7FF73801, 0x7FF6E001, 0x7FF6A801];
+    primes QP = Q||P;
+"""
 
 for q in Q + P:
-    # ROOTS_UNITY[(16, q)] = find_psi(q, 16)
     ROOTS_UNITY[(1024, q)] = find_psi(q, 1024)
 
-# CUSTOM_PARAMETERS = Parameters(
-#     # under 32 bits moduli
-#     q=Q,
-#     p=P,
-#     log_n=4,
-#     log_slots=3,
-# )
 CUSTOM_PARAMETERS = Parameters(
     # under 32 bits moduli
     q=Q,
@@ -73,7 +77,7 @@ def ctx():
 def test_encode_decode(ctx):
     """Test that encoding and decoding a message returns the original message."""
     # Create a test message
-    msg = np.array([1, 2, 5, 2, -1, 0, 4.5, 1.5])
+    msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
     # Encrypt the message
     pt = encode(msg, DEFAULT_SCALE, ctx._params.moduli)
@@ -89,7 +93,7 @@ def test_encode_decode(ctx):
 def test_encrypt_decrypt(ctx: CryptoContext):
     """Test that encrypting and decrypting a message returns the original message."""
     # Create a test message
-    msg = np.array([1, 2, 5, 2, -1, 0, 4.5, 1.5])
+    msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
     # Encrypt the message
     ciphertext = ctx.encrypt_msg(msg, DEFAULT_SCALE)
@@ -103,7 +107,7 @@ def test_encrypt_decrypt(ctx: CryptoContext):
 
 
 def test_add(ctx: CryptoContext, tmp_path):
-    msg = np.arange(1, 9)
+    msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
     ciphertext = ctx.encrypt_msg(list(msg), DEFAULT_SCALE)
 
@@ -112,12 +116,12 @@ def test_add(ctx: CryptoContext, tmp_path):
 
     prog = parser.Program.parse_string(
         f"""
-    primes Q = [0x10001, 0xC0001];
+    {FHETCH_PRIMES}
     def main() {{
-        var ct_0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("{tmp_path}/ct_0.npz,Q");
+        var ct_0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("{tmp_path}/ct_0.npz",Q);
         var ct_1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("{tmp_path}/ct_1.npz",Q);
-        var s0 = ct_0 + ct_0(mod Q);
-        var s1 = ct_1 + ct_1(mod Q);
+        var s0 = ct_0 + ct_0;
+        var s1 = ct_1 + ct_1;
         write_mrp_u32_1024_Q(s0,"{tmp_path}/ct_res_0.npz");
         write_mrp_u32_1024_Q(s1,"{tmp_path}/ct_res_1.npz");
     }}
@@ -153,16 +157,7 @@ def test_mult(ctx: CryptoContext, tmp_path):
 
     prog = parser.Program.parse_string(
         f"""
-    primes Digit0 = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801, 0x7FFE6001, 0x7FFE1801];
-    primes Digit1 = [0x7FFE0001, 0x7FFDE801, 0x7FFDC801, 0x7FFD5801, 0x7FFD2801];
-    primes Digit2 = [0x7FFD2001, 0x7FFC4801, 0x7FFC3801, 0x7FFBF001, 0x7FFBC001];
-    primes Digit3 = [0x7FFBA001, 0x7FFB5801, 0x7FFA2801, 0x7FF9E001, 0x7FF9C001];
-    primes Digit4 = [0x7FF96801, 0x7FF94801, 0x7FF93801, 0x7FF87001, 0x7FF81001];
-    primes Q = Digit0||Digit1||Digit2||Digit3||Digit4;
-    primes P = [0x7FF80001, 0x7FF7B001, 0x7FF73801, 0x7FF6E001, 0x7FF6A801];
-    primes QP = Q||P;
-
-
+    {FHETCH_PRIMES}
     def KeySwitch(poly: MRP<u32, 1024, Q>, k00, k01, k10, k11, k20, k21, k30, k31, k40, k41) {{ 
         var decomposed0 = BaseExtend(poly, Digit0, QP);
         var decomposed1 = BaseExtend(poly, Digit1, QP);

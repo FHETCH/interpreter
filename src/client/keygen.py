@@ -13,21 +13,16 @@ from fhetch.ntt import ROOTS_UNITY
 
 
 def gen_noise(moduli: list[int], degree: int, sigma=3.2):
+    coeffs = []
     rng = np.random.default_rng()
-    rns = []
-    for _ in moduli:
-        coeffs = []
-        while len(coeffs) < degree:
-            sample = rng.normal(scale=sigma, size=degree - len(coeffs)).round()
-            good_idxs = np.abs(sample) <= 6 * sigma
-            coeffs.extend(int(x) for x in sample[good_idxs])
-        rns.append(np.array(coeffs))
-
-    return MRP({q: Vector(vec) for q, vec in zip(moduli, rns)})
-    
+    while len(coeffs) < degree:
+        sample = rng.normal(scale=sigma, size=degree - len(coeffs)).round()
+        good_idxs = np.abs(sample) <= 6 * sigma
+        coeffs.extend(int(x) for x in sample[good_idxs])
+    return MRP.from_coeffs(moduli, coeffs)
 
 
-def gen_sk(params: Parameters) -> Vector:
+def gen_sk(params:Parameters)->Vector:
     hw = params.h
     degree = params.degree
     if hw > degree:
@@ -37,7 +32,6 @@ def gen_sk(params: Parameters) -> Vector:
     coeffs = ([1] * num_pos) + ([-1] * num_neg) + ([0] * (degree - hw))
     shuffle(coeffs)
     return Vector(np.array(coeffs))
-
 
 def gen_ksk(
     old_key: MRP,
@@ -58,14 +52,13 @@ def gen_ksk(
         for b, a in zip(powers, a)
     ]
 
-
-def _powers(poly: MRP, digit_sizes: list[int]) -> list[MRP]:
+def _powers(poly: MRP, digit_sizes: list[int])->list[MRP]:
     moduli = list(poly.values.keys())
     QP = prod(moduli)
     idx = 0
     res = []
     for size in digit_sizes:
-        q_hat = prod(moduli[idx : idx + size])
+        q_hat = prod(moduli[idx:idx+size])
         idx += size
         # This is the same as clearing all the residues that are not in this digit
         res.append((poly.muls(QP // q_hat)).muls(pow(QP // q_hat, -1, q_hat)))
@@ -78,25 +71,28 @@ def gen_relin_key(sk: Vector, q: list[int], p: list[int]):
     sk_poly = MRP.from_coeffs(base=qp, coeffs=sk.value)
     return gen_ksk(sk_poly * sk_poly, sk_poly, q, p)
 
-
+      
 def main():
     import argparse
     import json
     from pathlib import Path
 
     parser = argparse.ArgumentParser(description="Generate FHE secret key")
-    parser.add_argument("params_json", type=Path, help="Path to parameters JSON file")
     parser.add_argument(
-        "-o",
-        "--output",
+        "params_json",
+        type=Path,
+        help="Path to parameters JSON file"
+    )
+    parser.add_argument(
+        "-o", "--output",
         type=Path,
         default="keys",
-        help="Output folder for keys (default: keys)",
+        help="Output folder for keys (default: keys)"
     )
-
+    
     args = parser.parse_args()
-    # Load and deserialize parameters
-    with open(args.params_json, "r") as f:
+     # Load and deserialize parameters
+    with open(args.params_json, 'r') as f:
         params_dict = json.load(f)
 
     params = Parameters(**params_dict)
@@ -105,11 +101,11 @@ def main():
 
     # Generate secret key
     sk = gen_sk(params)
-
+    
     # Save to disk
     args.output.mkdir(parents=True, exist_ok=True)
     np.save(args.output / "sk.npy", sk.value)
-
+    
     relin_key = gen_relin_key(sk, params.q, params.p)
 
     for i, (ksk_0, ksk_1) in enumerate(relin_key):
@@ -117,7 +113,8 @@ def main():
         save_mrp(ksk_1, args.output / f"relin_d{i}_1.npz")
 
     print(f"Secret key generated and saved to {args.output}")
-
-
+    
 if __name__ == "__main__":
     main()
+
+

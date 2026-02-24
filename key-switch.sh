@@ -11,8 +11,8 @@ uv run fhetch-keygen params_65536.json -o temp/keys
 
 # Step 2: Generate two random messages
 echo "==> Generating random messages..."
-uv run python generate-random-msg.py --output temp/msg1.json --size 32768
-uv run python generate-random-msg.py --output temp/msg2.json --size 32768
+uv run python scripts/generate-random-msg.py --output temp/msg1.json --size 32768
+uv run python scripts/generate-random-msg.py --output temp/msg2.json --size 32768
 
 # Step 3: Encrypt both messages
 echo "==> Encrypting msg1..."
@@ -32,7 +32,7 @@ uv run fhetch-decrypt params_65536.json temp/keys/sk.npy temp/ct_res -o temp/dec
 
 # Step 6: Verify the result
 echo "==> Verifying result..."
-uv run python verify_results.py temp/msg1.json temp/msg2.json temp/decrypted.npy
+uv run python scripts/verify_results.py temp/msg1.json temp/msg2.json temp/decrypted.npy
 
 # Cleanup
 echo ""

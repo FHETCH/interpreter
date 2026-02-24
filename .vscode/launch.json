@@ -1,0 +1,76 @@
+{
+    // Use IntelliSense to learn about possible attributes. // Hover to view descriptions of existing attributes. // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387 
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: FHETCH Parser (Root)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "fhetch.main",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            },
+            "args": [
+                "examples/key_switch.fhetch"
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "Debug fhetch-keygen",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "client.keygen",
+            "args": [
+                "params_1024.json",
+                "-o",
+                "keys"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Debug fhetch-encrypt",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "client.encrypt",
+            "args": [
+                "params_1024.json",
+                "keys/sk.npy",
+                "msg.json",
+                "-o",
+                "ct"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Debug fhetch-decrypt",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "client.decrypt",
+            "args": [
+                "params_1024.json",
+                "keys/sk.npy",
+                "ct",
+                "-o",
+                "decrypted_msg.npy"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        }
+    ]
+}

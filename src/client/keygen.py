@@ -50,7 +50,7 @@ def gen_ksk(
     zeros = Vector(np.zeros(degree, dtype=np.uint32))
 
     # For digit i, powers[i][q_j] == old_key[q_j] if q_j is in digit i, else 0.
-    # that just zeros out non-digit residues), we directly build the scaled MRP:
+    # we directly build the scaled MRP:
     # multiply only the digit's residues by P, zero-fill the rest.
     idx = 0
     result = []

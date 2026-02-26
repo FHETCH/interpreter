@@ -68,7 +68,7 @@ def _number_theoretic_transform(seq, prime, rou, inverse=False):
 
     n = len(a)
     if n < 1:
-        return a.tolist()
+        return a
 
     b = n.bit_length() - 1
     if n & (n - 1):        # not a power of two — pad
@@ -114,4 +114,4 @@ def _number_theoretic_transform(seq, prime, rou, inverse=False):
         rv = pow(n, p - 2, p)
         a = a * rv % p
 
-    return a.tolist()
+    return a

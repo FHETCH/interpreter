@@ -123,7 +123,7 @@ class Vector:
         # After reduction both operands are < q < 2^31, so their product < 2^62 < INT64_MAX.
         twisted = (self.value % q).astype(np.int64) * psi_powers[:n] % q
         coefficients_ntt = _number_theoretic_transform(twisted, q, rou=rou2, inverse=False)
-        return Vector(np.array(coefficients_ntt, dtype=self.value.dtype))
+        return Vector(coefficients_ntt.astype(self.value.dtype))
 
     def inverse_ntt(self, q, rou):
         """Inverse NTT function"""
@@ -133,7 +133,7 @@ class Vector:
         coefficients_intt = _number_theoretic_transform(self.value, q, rou=rou2, inverse=True)
         psi_powers = _nb_theory_scratchpad.get_powers_rou(q, n, rou)
         # Negacyclic post-twist: multiply result[i] by psi^(2n - i)  (i = 1..n-1, index 2n-1 down to n+1)
-        intt_arr = np.array(coefficients_intt, dtype=np.int64)
+        intt_arr = coefficients_intt.astype(np.int64)
         # post-twist indices: 0 stays as-is; for i>=1 use powers[2n - i]
         twist_idx = np.arange(n, dtype=np.int64)
         twist_idx[1:] = 2 * n - twist_idx[1:]

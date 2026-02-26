@@ -38,8 +38,10 @@ class Scalar:
             raise TypeError("Cannot Multiply Scalar with Vector")
         return Scalar(self.value * other.value)
 
-    def __mod__(self, q):
-        return Scalar(self.value % q.value)
+    def __mod__(self, q:Scalar|int|np.integer):
+        if isinstance(q, Scalar):
+            q = q.value
+        return Scalar(self.value % q)
 
     def add(self, other, q):
         if isinstance(other, Vector):
@@ -77,7 +79,7 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
-        if isinstance(other, int) and other >= 1<<32:
+        if isinstance(other, int) and self.value.dtype != np.dtype(object) and other >= 1<<32 :
            raise OverflowError("Potential Overflow")
                 
         return Vector(self.value * other)
@@ -173,11 +175,16 @@ class MRP:
         return MRP({
             q: (v1 * other.values[q]) % q for q, v1 in self.values.items()
         })
+        
+    def muls(self, other: int|np.integer):
+        return MRP({
+            q: (v1 * other) % q for q, v1 in self.values.items()
+        })
 
     def extract_base(self, base: set[int]):
         return MRP({q: self.values[q] for q in base})
 
-    def reconstruct(self, exact: bool) -> Vector:
+    def reconstruct(self, exact: bool,signed:bool) -> Vector:
         degree = self.degree()
         for q in self.values.keys():
             if (degree, q) not in ROOTS_UNITY:
@@ -189,10 +196,14 @@ class MRP:
             q_star = big_q // q
             q_hat = Scalar(pow(q_star, -1, q))
             vec = vec.inverse_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
-            result += ((vec * q_hat) % q) * q_star
+            vec.value = vec.value.astype(object)
+            result += vec.mul(q_hat,q) * q_star
 
         if exact:
             result.value %= big_q
+            if signed:
+                result.value = np.where(result.value > big_q // 2, result.value - big_q, result.value)
+
         return result
 
     def extend_base(self, new_primes: set[int], exact: bool):

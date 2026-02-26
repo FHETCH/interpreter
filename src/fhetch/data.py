@@ -17,7 +17,6 @@ def modulo(x, q):
         x -= (x > q // 2) * q
     return x
 
-
 @dataclass(frozen=True)
 class Scalar:
     # We use Python's arbitrary precision int for scalars in order to allow
@@ -39,8 +38,10 @@ class Scalar:
             raise TypeError("Cannot Multiply Scalar with Vector")
         return Scalar(self.value * other.value)
 
-    def __mod__(self, q):
-        return Scalar(self.value % q.value)
+    def __mod__(self, q:Scalar|int|np.integer):
+        if isinstance(q, Scalar):
+            q = q.value
+        return Scalar(self.value % q)
 
     def add(self, other, q):
         if isinstance(other, Vector):
@@ -57,9 +58,8 @@ class Scalar:
         if isinstance(other, Vector):
             return other.mul(self, q)
         return Scalar(modulo(self.value * other.value, q.value))
-    
-    # TODO: Add negate
 
+    # TODO: Add negate
 
 @dataclass
 class Vector:
@@ -79,12 +79,9 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
-        # If `other` overflows the array's dtype, upcast to object to avoid silent wraparound.
-        if isinstance(other, int) and self.value.dtype != np.dtype(object):
-            try:
-                np.array(other, dtype=self.value.dtype)
-            except OverflowError:
-                return Vector(self.value.astype(object) * other)
+        if isinstance(other, int) and self.value.dtype != np.dtype(object) and other >= 1<<32 :
+           raise OverflowError("Potential Overflow")
+                
         return Vector(self.value * other)
 
     def __mod__(self, other):
@@ -107,6 +104,7 @@ class Vector:
     # TODO: Add negate
 
     def mul(self, other, q):
+        other = other % q
         return (self * other) % q
     
     def __rmul__(self, other):
@@ -154,9 +152,9 @@ class MRP:
     @classmethod
     def from_coeffs(cls, base: list[int], coeffs: list[int]):
         degree = len(coeffs)
-        coeffs_vec = Vector(np.array(coeffs))
+        coeffs = Vector(np.array(coeffs))
         return cls({
-            q: coeffs_vec.forward_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
+            q: coeffs.forward_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
             for q in base
         })
 
@@ -198,8 +196,8 @@ class MRP:
             q_star = big_q // q
             q_hat = Scalar(pow(q_star, -1, q))
             vec = vec.inverse_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
-            vec = Vector(vec.value.astype(object))
-            result += ((vec * q_hat) % q) * q_star
+            vec.value = vec.value.astype(object)
+            result += vec.mul(q_hat,q) * q_star
 
         if exact:
             result.value %= big_q

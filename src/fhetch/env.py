@@ -1,9 +1,8 @@
 import sys
 
 import numpy as np
-
-from .data import MRP, Scalar, Vector
-from .fhetch_ast import Constant, StringLiteral
+from .data import Scalar, Vector, MRP
+from .fhetch_ast import Constant
 from .ntt import ROOTS_UNITY
 
 # TODO: import from client to interp seems a bit off
@@ -18,7 +17,7 @@ def builtin_write(obj):
         case np.uint64():
             sys.stdout.buffer.write(obj.tobytes())
         case Vector(v):
-            if v.dtype.kind in ("u", "i"):
+            if v.dtype.kind in ('u', 'i'):
                 # optimization for vectors of scalars
                 sys.stdout.buffer.write(v.astype(np.int32).tobytes())
             else:
@@ -34,13 +33,13 @@ def builtin_write(obj):
 def builtin_print(obj):
     match obj:
         case Scalar(x):
-            print(x, end="")
+            print(x, end='')
         case Vector(v):
-            print("[", end="")
+            print('[', end='')
             for x in v:
                 builtin_print(x)
-                print(", ", end="")
-            print("]")
+                print(', ', end='')
+            print(']')
         case Constant(_, _, value):
             builtin_print(value)
         case other:
@@ -67,18 +66,15 @@ def builtin_sub(lhs, rhs, q):
 def builtin_mul(lhs, rhs, q):
     return lhs.mul(rhs, q.value)
 
-
 def builtin_set_rou(ring_dimension: Scalar, modulus: Scalar, rou: Scalar):
     """Set the global root of unity for this modulus"""
     assert ring_dimension.value > 0
     ROOTS_UNITY[(ring_dimension.value, modulus.value)] = rou.value
     return
 
-
 def builtin_ntt(lhs: Vector, q: Scalar):
     assert isinstance(lhs, Vector)
     return lhs.forward_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
-
 
 def builtin_intt(lhs: Vector, q: Scalar):
     assert isinstance(lhs, Vector)

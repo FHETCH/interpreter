@@ -17,6 +17,8 @@ class CryptoContext:
 
     def encrypt(self, pt: MRP) -> tuple[MRP, MRP]:
         degree = pt.degree()
+        if degree != len(self._sk.value):
+            raise ValueError(f"Degree mismatch: plaintext degree {degree} != secret key length {len(self._sk.value)}")
         pt_base = pt.values.keys()
         # Create MRP sk from a vector based on the pt base
         sk = MRP.from_coeffs(base=pt_base, coeffs=self._sk.value)

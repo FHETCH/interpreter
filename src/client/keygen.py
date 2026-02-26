@@ -46,7 +46,6 @@ def gen_ksk(
 
     a = [random_poly(base, degree) for _ in range(d_num)]
     d_sizes = [len(p)] * (d_num - 1) + [len(q) - len(p) * (d_num - 1)]
-    moduli = list(old_key.values.keys())
     zeros = Vector(np.zeros(degree, dtype=np.uint32))
 
     # For digit i, powers[i][q_j] == old_key[q_j] if q_j is in digit i, else 0.
@@ -55,10 +54,10 @@ def gen_ksk(
     idx = 0
     result = []
     for size, a_poly in zip(d_sizes, a):
-        digit_set = set(moduli[idx:idx + size])
+        digit_set = set(q[idx:idx + size])
         b_scaled = MRP({
-            q_j: (old_key.values[q_j] * P) % q_j if q_j in digit_set else zeros
-            for q_j in moduli
+            q_j: (old_key.values[q_j].mul(P ,q_j)) if q_j in digit_set else zeros
+            for q_j in base
         })
         result.append((b_scaled - a_poly * new_key + gen_noise(base, degree), a_poly))
         idx += size

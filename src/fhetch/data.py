@@ -17,7 +17,6 @@ def modulo(x, q):
         x -= (x > q // 2) * q
     return x
 
-
 @dataclass(frozen=True)
 class Scalar:
     # We use Python's arbitrary precision int for scalars in order to allow
@@ -57,9 +56,8 @@ class Scalar:
         if isinstance(other, Vector):
             return other.mul(self, q)
         return Scalar(modulo(self.value * other.value, q.value))
-    
-    # TODO: Add negate
 
+    # TODO: Add negate
 
 @dataclass
 class Vector:
@@ -79,12 +77,9 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
-        # If `other` overflows the array's dtype, upcast to object to avoid silent wraparound.
-        if isinstance(other, int) and self.value.dtype != np.dtype(object):
-            try:
-                np.array(other, dtype=self.value.dtype)
-            except OverflowError:
-                return Vector(self.value.astype(object) * other)
+        if isinstance(other, int) and other >= 1<<32:
+           raise OverflowError("Potential Overflow")
+                
         return Vector(self.value * other)
 
     def __mod__(self, other):
@@ -107,6 +102,7 @@ class Vector:
     # TODO: Add negate
 
     def mul(self, other, q):
+        other = other % q
         return (self * other) % q
     
     def __rmul__(self, other):
@@ -118,9 +114,11 @@ class Vector:
         rou2 = (rou * rou) % q
         coefficients = self.value.tolist()
         prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou=rou)
-        for (i, coefficient) in enumerate(coefficients[1:]):
+        for i, coefficient in enumerate(coefficients[1:]):
             coefficients[i + 1] = (prefactors[i + 1] * coefficient) % q
-        coefficients_ntt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=False)
+        coefficients_ntt = _number_theoretic_transform(
+            coefficients, q, rou=rou2, inverse=False
+        )
         return Vector(np.array(coefficients_ntt, dtype=self.value.dtype))
 
     def inverse_ntt(self, q, rou):
@@ -128,10 +126,14 @@ class Vector:
         q = q.value
         rou2 = (rou * rou) % q
         coefficients = self.value.tolist()
-        coefficients_intt = _number_theoretic_transform(coefficients, q, rou=rou2, inverse=True)
+        coefficients_intt = _number_theoretic_transform(
+            coefficients, q, rou=rou2, inverse=True
+        )
         prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou)
-        for (i, coefficient) in enumerate(coefficients_intt[1:]):
-            coefficients_intt[i + 1] = (prefactors[2 * len(coefficients) - i - 1] * coefficient) % q
+        for i, coefficient in enumerate(coefficients_intt[1:]):
+            coefficients_intt[i + 1] = (
+                prefactors[2 * len(coefficients) - i - 1] * coefficient
+            ) % q
         return Vector(np.array(coefficients_intt, dtype=self.value.dtype))
 
 
@@ -148,9 +150,9 @@ class MRP:
     @classmethod
     def from_coeffs(cls, base: list[int], coeffs: list[int]):
         degree = len(coeffs)
-        coeffs_vec = Vector(np.array(coeffs))
+        coeffs = Vector(np.array(coeffs))
         return cls({
-            q: coeffs_vec.forward_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
+            q: coeffs.forward_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
             for q in base
         })
 
@@ -171,16 +173,11 @@ class MRP:
         return MRP({
             q: (v1 * other.values[q]) % q for q, v1 in self.values.items()
         })
-        
-    def muls(self, other: int|np.integer):
-        return MRP({
-            q: (v1 * other) % q for q, v1 in self.values.items()
-        })
 
     def extract_base(self, base: set[int]):
         return MRP({q: self.values[q] for q in base})
 
-    def reconstruct(self, exact: bool,signed:bool) -> Vector:
+    def reconstruct(self, exact: bool) -> Vector:
         degree = self.degree()
         for q in self.values.keys():
             if (degree, q) not in ROOTS_UNITY:
@@ -192,14 +189,10 @@ class MRP:
             q_star = big_q // q
             q_hat = Scalar(pow(q_star, -1, q))
             vec = vec.inverse_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
-            vec = Vector(vec.value.astype(object))
             result += ((vec * q_hat) % q) * q_star
 
         if exact:
             result.value %= big_q
-            if signed:
-                result.value = np.where(result.value > big_q // 2, result.value - big_q, result.value)
-
         return result
 
     def extend_base(self, new_primes: set[int], exact: bool):

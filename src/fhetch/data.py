@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import prod
+import math
 
 import numpy as np
 
@@ -37,8 +38,10 @@ class Scalar:
             raise TypeError("Cannot Multiply Scalar with Vector")
         return Scalar(self.value * other.value)
 
-    def __mod__(self, q):
-        return Scalar(self.value % q.value)
+    def __mod__(self, q:Scalar|int|np.integer):
+        if isinstance(q, Scalar):
+            q = q.value
+        return Scalar(self.value % q)
 
     def add(self, other, q):
         if isinstance(other, Vector):
@@ -76,6 +79,9 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
+        if isinstance(other, int) and self.value.dtype != np.dtype(object) and other >= 1<<32 :
+           raise OverflowError("Potential Overflow")
+                
         return Vector(self.value * other)
 
     def __mod__(self, other):
@@ -97,21 +103,9 @@ class Vector:
 
     # TODO: Add negate
 
-    def mul(self, other, q=None):
-        if isinstance(q, Scalar):
-            q = q.value
-        # Convert scalar to python int
-        if isinstance(other, Scalar):
-            other = other.value
-        # Vector * Scalar
-        if isinstance(other, np.integer | int):
-            result = Vector(self.value * other)
-        else:
-            # Vector * Vector
-            result = Vector(self.value * other.value)
-        if q is not None:
-            result = result % q
-        return result
+    def mul(self, other, q):
+        other = other % q
+        return (self * other) % q
     
     def __rmul__(self, other):
         return self.__mul__(other)
@@ -181,12 +175,17 @@ class MRP:
         return MRP({
             q: (v1 * other.values[q]) % q for q, v1 in self.values.items()
         })
+        
+    def muls(self, other: int|np.integer):
+        return MRP({
+            q: (v1 * other) % q for q, v1 in self.values.items()
+        })
 
     def extract_base(self, base: set[int]):
         return MRP({q: self.values[q] for q in base})
 
-    def reconstruct(self, exact: bool) -> Vector:
-        degree = len(next(iter(self.values.values())).value)
+    def reconstruct(self, exact: bool,signed:bool) -> Vector:
+        degree = self.degree()
         for q in self.values.keys():
             if (degree, q) not in ROOTS_UNITY:
                 raise RuntimeError("Missing root of unity for (degree, q): ", degree, q)
@@ -197,10 +196,14 @@ class MRP:
             q_star = big_q // q
             q_hat = Scalar(pow(q_star, -1, q))
             vec = vec.inverse_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
-            result += ((vec * q_hat) % q) * q_star
+            vec.value = vec.value.astype(object)
+            result += vec.mul(q_hat,q) * q_star
 
         if exact:
             result.value %= big_q
+            if signed:
+                result.value = np.where(result.value > big_q // 2, result.value - big_q, result.value)
+
         return result
 
     def extend_base(self, new_primes: set[int], exact: bool):
@@ -210,7 +213,7 @@ class MRP:
                 "Cannot extend to base that is already part of the MRP", common
             )
 
-        reconstructed = self.reconstruct(exact)
+        reconstructed = self.reconstruct(exact,signed=False)
         degree = len(reconstructed.value)
         for q in new_primes:
             if (degree, q) not in ROOTS_UNITY:
@@ -220,3 +223,22 @@ class MRP:
             for q in new_primes
         }
         return MRP(self.values | new_base)
+    
+    def degree(self):
+        return len(next(iter(self.values.values())).value)
+    
+    def base(self):
+        return set(self.values.keys())
+    
+    def divq(self, q):
+        Q = math.prod(q)
+        not_int_q = self.base() - q
+        q_inv = pow(Q, -1, math.prod(not_int_q))
+        original = self.extract_base(not_int_q)
+        in_q = self.extract_base(q)
+        to_sub = in_q.extend_base(not_int_q, exact=False).extract_base(not_int_q)
+
+        result = (original - to_sub).muls(q_inv)
+        return result
+            
+        

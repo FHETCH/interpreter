@@ -18,7 +18,7 @@ def gen_noise(moduli: list[int], degree: int, sigma=3.2):
     while len(coeffs) < degree:
         sample = rng.normal(scale=sigma, size=degree - len(coeffs)).round()
         good_idxs = np.abs(sample) <= 6 * sigma
-        coeffs.extend(sample[good_idxs])
+        coeffs.extend(int(x) for x in sample[good_idxs])
     return MRP.from_coeffs(moduli, coeffs)
 
 
@@ -46,23 +46,23 @@ def gen_ksk(
 
     a = [random_poly(base, degree) for _ in range(d_num)]
     d_sizes = [len(p)] * (d_num - 1) + [len(q) - len(p) * (d_num - 1)]
-    powers = _powers(old_key, d_sizes)
-    return [
-        (b.muls(P) - a * new_key + gen_noise(base, degree), a)
-        for b, a in zip(powers, a)
-    ]
+    moduli = list(old_key.values.keys())
+    zeros = Vector(np.zeros(degree, dtype=np.uint32))
 
-def _powers(poly: MRP, digit_sizes: list[int])->list[MRP]:
-    moduli = list(poly.values.keys())
-    QP = prod(moduli)
+    # For digit i, powers[i][q_j] == old_key[q_j] if q_j is in digit i, else 0.
+    # we directly build the scaled MRP:
+    # multiply only the digit's residues by P, zero-fill the rest.
     idx = 0
-    res = []
-    for size in digit_sizes:
-        q_hat = prod(moduli[idx:idx+size])
+    result = []
+    for size, a_poly in zip(d_sizes, a):
+        digit_set = set(moduli[idx:idx + size])
+        b_scaled = MRP({
+            q_j: (old_key.values[q_j] * P) % q_j if q_j in digit_set else zeros
+            for q_j in moduli
+        })
+        result.append((b_scaled - a_poly * new_key + gen_noise(base, degree), a_poly))
         idx += size
-        # This is the same as clearing all the residues that are not in this digit
-        res.append((poly.muls(QP // q_hat)).muls(pow(QP // q_hat, -1, q_hat)))
-    return res
+    return result
 
 
 def gen_relin_key(sk: Vector, q: list[int], p: list[int]):
@@ -101,12 +101,11 @@ def main():
 
     # Generate secret key
     sk = gen_sk(params)
-    
+    relin_key = gen_relin_key(sk, params.q, params.p)
+
     # Save to disk
     args.output.mkdir(parents=True, exist_ok=True)
     np.save(args.output / "sk.npy", sk.value)
-    
-    relin_key = gen_relin_key(sk, params.q, params.p)
 
     for i, (ksk_0, ksk_1) in enumerate(relin_key):
         save_mrp(ksk_0, args.output / f"relin_d{i}_0.npz")

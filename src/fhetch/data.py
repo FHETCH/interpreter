@@ -77,7 +77,7 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
-        if isinstance(other, int) and other >= 1<<32:
+        if isinstance(other, int) and self.value.dtype != np.dtype(object) and other >= 1<<32 :
            raise OverflowError("Potential Overflow")
                 
         return Vector(self.value * other)
@@ -189,6 +189,7 @@ class MRP:
             q_star = big_q // q
             q_hat = Scalar(pow(q_star, -1, q))
             vec = vec.inverse_ntt(Scalar(q), rou=ROOTS_UNITY.get((degree, q)))
+            vec.value = vec.value.astype(object)
             result += ((vec * q_hat) % q) * q_star
 
         if exact:
@@ -202,7 +203,7 @@ class MRP:
                 "Cannot extend to base that is already part of the MRP", common
             )
 
-        reconstructed = self.reconstruct(exact,signed=False)
+        reconstructed = self.reconstruct(exact)
         degree = len(reconstructed.value)
         for q in new_primes:
             if (degree, q) not in ROOTS_UNITY:

@@ -77,7 +77,7 @@ class Vector:
 
     def __mul__(self, other):
         other = getattr(other, 'value', other)
-        if isinstance(other, int) and other > 1<<32:
+        if isinstance(other, int) and other >= 1<<32:
            raise OverflowError("Potential Overflow")
                 
         return Vector(self.value * other)

@@ -22,10 +22,10 @@ step_end
 
 # Step 2: Generate two random messages
 echo "==> Generating random messages..."
-step_start
-uv run python scripts/generate-random-msg.py --output temp/msg1.json --size $MSG_SIZE
-uv run python scripts/generate-random-msg.py --output temp/msg2.json --size $MSG_SIZE
-step_end
+#step_start
+uv run python scripts/generate-random-msg.py --output temp/msg1.json --size $MSG_SIZE --name "Message 1"
+uv run python scripts/generate-random-msg.py --output temp/msg2.json --size $MSG_SIZE --name "Message 2"
+#step_end
 
 # Step 3: Encrypt both messages
 echo "==> Encrypting msg1..."

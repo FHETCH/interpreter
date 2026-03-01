@@ -20,6 +20,11 @@ def main():
 
     np.testing.assert_allclose(decrypted, expected, rtol=1e-3, atol=1e-3)
     print("PASS: Decrypted result matches msg1 * msg2")
+    print(f"Message 1: [{', '.join(str(x) for x in msg1[:4])}...]")
+    print(f"Message 2: [{', '.join(str(x) for x in msg2[:4])}...]")
+    print(f"Expected: [{', '.join(str(x) for x in expected[:4])}...]")
+    print(f"Decrypted: [{', '.join(str(x) for x in decrypted[:4])}...]")
+
 
 
 if __name__ == "__main__":

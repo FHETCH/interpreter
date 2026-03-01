@@ -28,7 +28,7 @@ def get_roots(N: int):
 def special_fft(coeffs, scale):
     n = len(coeffs) // 2
 
-    values = np.array(bit_rev(coeffs), dtype=np.complex256) / scale
+    values = np.array(bit_rev(coeffs), dtype=np.complex128) / scale
     values = values[::2] + values[1::2] * 1j
 
     rotGroup, roots = get_roots(n * 2)
@@ -57,7 +57,7 @@ def special_fft(coeffs, scale):
 
 
 def special_ifft(message, scale):
-    values = np.array(message, dtype=np.complex256)
+    values = np.array(message, dtype=np.complex128)
     n = len(message)
     rotGroup, roots = get_roots(n * 2)
     log_n = int(math.log(n, 2))

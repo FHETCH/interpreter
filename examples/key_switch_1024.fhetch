@@ -1,0 +1,91 @@
+primes Digit0 = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801, 0x7FFE6001, 0x7FFE1801];
+primes Digit1 = [0x7FFE0001, 0x7FFDE801, 0x7FFDC801, 0x7FFD5801, 0x7FFD2801];
+primes Digit2 = [0x7FFD2001, 0x7FFC4801, 0x7FFC3801, 0x7FFBF001, 0x7FFBC001];
+primes Digit3 = [0x7FFBA001, 0x7FFB5801, 0x7FFA2801, 0x7FF9E001, 0x7FF9C001];
+primes Digit4 = [0x7FF96801, 0x7FF94801, 0x7FF93801, 0x7FF87001, 0x7FF81001];
+primes Q = Digit0||Digit1||Digit2||Digit3||Digit4;
+primes P = [0x7FF80001, 0x7FF7B001, 0x7FF73801, 0x7FF6E001, 0x7FF6A801];
+primes QP = Q||P;
+const ring_dimension: u32 = 1024;
+
+
+def initialize() {
+    sr_set_rou(ring_dimension, 2147473409, 383167813);
+    sr_set_rou(ring_dimension, 2147389441, 211808905);
+    sr_set_rou(ring_dimension, 2147387393, 222831930);
+    sr_set_rou(ring_dimension, 2147377153, 1977035326);
+    sr_set_rou(ring_dimension, 2147358721, 1067163706);
+    sr_set_rou(ring_dimension, 2147352577, 1606082042);
+    sr_set_rou(ring_dimension, 2147346433, 741176756);
+    sr_set_rou(ring_dimension, 2147338241, 1653770625);
+    sr_set_rou(ring_dimension, 2147309569, 1249696275);
+    sr_set_rou(ring_dimension, 2147297281, 2038364663);
+    sr_set_rou(ring_dimension, 2147295233, 1962540515);
+    sr_set_rou(ring_dimension, 2147239937, 2100082663);
+    sr_set_rou(ring_dimension, 2147235841, 1991153006);
+    sr_set_rou(ring_dimension, 2147217409, 1847160388);
+    sr_set_rou(ring_dimension, 2147205121, 409347988);
+    sr_set_rou(ring_dimension, 2147196929, 927788991);
+    sr_set_rou(ring_dimension, 2147178497, 1136922411);
+    sr_set_rou(ring_dimension, 2147100673, 868626236);
+    sr_set_rou(ring_dimension, 2147082241, 1897279176);
+    sr_set_rou(ring_dimension, 2147074049, 696324761);
+    sr_set_rou(ring_dimension, 2147051521, 25006327);
+    sr_set_rou(ring_dimension, 2147043329, 327546255);
+    sr_set_rou(ring_dimension, 2147039233, 766324424);
+    sr_set_rou(ring_dimension, 2146988033, 1862817362);
+    sr_set_rou(ring_dimension, 2146963457, 404622040);
+    sr_set_rou(ring_dimension, 2146959361, 265228189);
+    sr_set_rou(ring_dimension, 2146938881, 1559770096);
+    sr_set_rou(ring_dimension, 2146908161, 1814478797);
+    sr_set_rou(ring_dimension, 2146885633, 1751189170);
+    sr_set_rou(ring_dimension, 2146871297, 578919515);
+}
+
+
+def KeySwitch(poly: MRP<u32, 1024, Q>, k00, k01, k10, k11, k20, k21, k30, k31, k40, k41) {
+    var decomposed0 = BaseExtend(poly, Digit0, QP);
+    var decomposed1 = BaseExtend(poly, Digit1, QP);
+    var decomposed2 = BaseExtend(poly, Digit2, QP);
+    var decomposed3 = BaseExtend(poly, Digit3, QP);
+    var decomposed4 = BaseExtend(poly, Digit4, QP);
+
+    var accumulator0 = decomposed0 * k00 + decomposed1 * k10 + decomposed2 * k20 + decomposed3 * k30 + decomposed4 * k40;
+    var accumulator1 = decomposed0 * k01 + decomposed1 * k11 + decomposed2 * k21 + decomposed3 * k31 + decomposed4 * k41;
+
+    return [Rescale(accumulator0, P), Rescale(accumulator1, P)];
+}
+
+def main() {
+    initialize();
+    var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a/ct0.npz",Q);
+    var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_a/ct1.npz",Q);
+
+    var ct_b0: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b/ct0.npz",Q);
+    var ct_b1: MRP<u32, 1024, Q> = read_mrp_u32_1024_Q("temp/ct_b/ct1.npz",Q);
+
+    var prod0 = ct_a0 * ct_b0;
+    var prod1 = ct_a0 * ct_b1 + ct_a1 * ct_b0;
+    var prod2 = ct_a1 * ct_b1;
+
+    var relin_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d0_0.npz",QP);
+    var relin_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d0_1.npz",QP);
+    var relin_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d1_0.npz",QP);
+    var relin_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d1_1.npz",QP);
+    var relin_d2_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d2_0.npz",QP);
+    var relin_d2_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d2_1.npz",QP);
+    var relin_d3_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d3_0.npz",QP);
+    var relin_d3_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d3_1.npz",QP);
+    var relin_d4_0: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d4_0.npz",QP);
+    var relin_d4_1: MRP<u32, 1024, QP> = read_mrp_u32_1024_Q("temp/keys/relin_d4_1.npz",QP);
+
+    var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1, relin_d2_0, relin_d2_1, relin_d3_0, relin_d3_1, relin_d4_0, relin_d4_1);
+    var ct_res_0 = prod0 + get(ks, 0);
+    var ct_res_1 = prod1 + get(ks, 1);
+
+    var ct_res_0 = Rescale(ct_res_0,[0x7FF81001]);
+    var ct_res_1 = Rescale(ct_res_1,[0x7FF81001]);
+
+    write_mrp_u32_1024_Q(ct_res_0,"temp/ct_res/ct0.npz");
+    write_mrp_u32_1024_Q(ct_res_1,"temp/ct_res/ct1.npz");
+}

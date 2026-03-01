@@ -10,7 +10,7 @@ from fhetch.validate import check_name_collision, check_globals_types
 
 @fixture
 def prog():
-    return parser.Program.parse_file("examples/key_switch.fhetch", parse_all=True).program
+    return parser.Program.parse_file("examples/key_switch_1024.fhetch", parse_all=True).program
 
 def test_parse(prog):
     print(prog)

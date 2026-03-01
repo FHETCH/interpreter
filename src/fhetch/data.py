@@ -114,29 +114,29 @@ class Vector:
         """Forward NTT function"""
         q = q.value
         rou2 = (rou * rou) % q
-        coefficients = self.value.tolist()
-        prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou=rou)
-        for i, coefficient in enumerate(coefficients[1:]):
-            coefficients[i + 1] = (prefactors[i + 1] * coefficient) % q
-        coefficients_ntt = _number_theoretic_transform(
-            coefficients, q, rou=rou2, inverse=False
-        )
-        return Vector(np.array(coefficients_ntt, dtype=self.value.dtype))
+        n = len(self.value)
+        psi_powers = _nb_theory_scratchpad.get_powers_rou(q, n, rou=rou)
+        # Reduce mod q first: coefficients may be unreduced (e.g. from special_ifft)
+        # or stored as object-dtype big ints. Without this, int64 overflows.
+        # After reduction both operands are < q < 2^31, so their product < 2^62 < INT64_MAX.
+        twisted = (self.value % q).astype(np.int64) * psi_powers[:n] % q
+        coefficients_ntt = _number_theoretic_transform(twisted, q, rou=rou2, inverse=False)
+        return Vector(coefficients_ntt.astype(self.value.dtype))
 
     def inverse_ntt(self, q, rou):
         """Inverse NTT function"""
         q = q.value
         rou2 = (rou * rou) % q
-        coefficients = self.value.tolist()
-        coefficients_intt = _number_theoretic_transform(
-            coefficients, q, rou=rou2, inverse=True
-        )
-        prefactors = _nb_theory_scratchpad.get_powers_rou(q, len(coefficients), rou)
-        for i, coefficient in enumerate(coefficients_intt[1:]):
-            coefficients_intt[i + 1] = (
-                prefactors[2 * len(coefficients) - i - 1] * coefficient
-            ) % q
-        return Vector(np.array(coefficients_intt, dtype=self.value.dtype))
+        n = len(self.value)
+        coefficients_intt = _number_theoretic_transform(self.value, q, rou=rou2, inverse=True)
+        psi_powers = _nb_theory_scratchpad.get_powers_rou(q, n, rou)
+        # Negacyclic post-twist: multiply result[i] by psi^(2n - i)  (i = 1..n-1, index 2n-1 down to n+1)
+        intt_arr = coefficients_intt.astype(np.int64)
+        # post-twist indices: 0 stays as-is; for i>=1 use powers[2n - i]
+        twist_idx = np.arange(n, dtype=np.int64)
+        twist_idx[1:] = 2 * n - twist_idx[1:]
+        intt_arr = intt_arr * psi_powers[twist_idx] % q
+        return Vector(intt_arr.astype(self.value.dtype))
 
 
 @dataclass

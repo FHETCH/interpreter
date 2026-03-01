@@ -19,6 +19,7 @@ dependencies = [
 fhetch = "fhetch.main:main"
 fhetch-keygen = "client.keygen:main"
 fhetch-encrypt = "client.encrypt:main"
+fhetch-decrypt = "client.decrypt:main"
 
 [project.urls]
 Homepage = "https://fhetch.org/"

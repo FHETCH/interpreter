@@ -35,4 +35,4 @@ def _rewrite_expr(expr, modulus):
                 return expr
             return VectorLiteral(new_values)
         case other:
-            raise NotImplemented(other)
+            raise NotImplementedError(other)

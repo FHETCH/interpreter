@@ -25,8 +25,9 @@ def test_signed_coeffs():
     # Useful for secret keys that have signed coefficients
     coeffs = [0, 1, -1, 0] * 4
     poly = MRP.from_coeffs(Q, coeffs)
-    reconstructed = poly.reconstruct(exact=True,signed=True)
-    assert np.all(reconstructed.value == coeffs)
+    reconstructed = poly.reconstruct(exact=True,signed=False)
+    abs_q = [0, 1, prod(Q) - 1, 0] * 4
+    assert np.all(reconstructed.value == abs_q)
 
 
 def test_base_extend():

@@ -39,5 +39,5 @@ def encode(msg: list[int], scale, base: list[int]) -> MRP:
 
 
 def decode(pt: MRP, scale: int) -> np.array:
-    p = pt.reconstruct(exact=True, signed=True).value
+    p = pt.reconstruct(exact=True,signed=True).value
     return special_fft(list(p), scale)

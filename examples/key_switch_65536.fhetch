@@ -1,0 +1,91 @@
+primes Digit0 = [0x7FFE0001, 0x7FF80001, 0x7FEA0001, 0x7FD20001, 0x7FB40001];
+primes Digit1 = [0x7F4E0001, 0x7F440001, 0x7F420001, 0x7F3C0001, 0x7F180001];
+primes Digit2 = [0x7F000001, 0x7EFC0001, 0x7EE20001, 0x7EBA0001, 0x7EB40001];
+primes Digit3 = [0x7E780001, 0x7E640001, 0x7E520001, 0x7E360001, 0x7E100001];
+primes Digit4 = [0x7E040001, 0x7E000001, 0x7DF20001, 0x7DE60001, 0x7DBE0001];
+primes Q = Digit0||Digit1||Digit2||Digit3||Digit4;
+primes P = [0x7DB20001, 0x7D9E0001, 0x7D980001, 0x7D8E0001, 0x7D560001];
+primes QP = Q||P;
+const ring_dimension: u32 = 65536;
+
+
+def initialize() {
+    sr_set_rou(ring_dimension, 2147352577, 1615402923);
+    sr_set_rou(ring_dimension, 2146959361, 1137738560);
+    sr_set_rou(ring_dimension, 2146041857, 154880552);
+    sr_set_rou(ring_dimension, 2144468993, 558784885);
+    sr_set_rou(ring_dimension, 2142502913, 1513048968);
+    sr_set_rou(ring_dimension, 2135818241, 1283433771);
+    sr_set_rou(ring_dimension, 2135162881, 390776446);
+    sr_set_rou(ring_dimension, 2135031809, 1973750061);
+    sr_set_rou(ring_dimension, 2134638593, 1849592155);
+    sr_set_rou(ring_dimension, 2132279297, 1757483203);
+    sr_set_rou(ring_dimension, 2130706433, 373019801);
+    sr_set_rou(ring_dimension, 2130444289, 1273367096);
+    sr_set_rou(ring_dimension, 2128740353, 1147091190);
+    sr_set_rou(ring_dimension, 2126118913, 1119966757);
+    sr_set_rou(ring_dimension, 2125725697, 723830011);
+    sr_set_rou(ring_dimension, 2121793537, 1341814431);
+    sr_set_rou(ring_dimension, 2120482817, 652881896);
+    sr_set_rou(ring_dimension, 2119303169, 793647787);
+    sr_set_rou(ring_dimension, 2117468161, 1265029876);
+    sr_set_rou(ring_dimension, 2114977793, 1217816215);
+    sr_set_rou(ring_dimension, 2114191361, 1005633631);
+    sr_set_rou(ring_dimension, 2113929217, 1502475247);
+    sr_set_rou(ring_dimension, 2113011713, 1894188797);
+    sr_set_rou(ring_dimension, 2112225281, 1036342530);
+    sr_set_rou(ring_dimension, 2109603841, 337346424);
+    sr_set_rou(ring_dimension, 2108817409, 1433449093);
+    sr_set_rou(ring_dimension, 2107506689, 1156335857);
+    sr_set_rou(ring_dimension, 2107113473, 1029147918);
+    sr_set_rou(ring_dimension, 2106458113, 854902591);
+    sr_set_rou(ring_dimension, 2102788097, 446653831);
+}
+
+
+def KeySwitch(poly: MRP<u32, 65536, Q>, k00, k01, k10, k11, k20, k21, k30, k31, k40, k41) {
+    var decomposed0 = BaseExtend(poly, Digit0, QP);
+    var decomposed1 = BaseExtend(poly, Digit1, QP);
+    var decomposed2 = BaseExtend(poly, Digit2, QP);
+    var decomposed3 = BaseExtend(poly, Digit3, QP);
+    var decomposed4 = BaseExtend(poly, Digit4, QP);
+
+    var accumulator0 = decomposed0 * k00 + decomposed1 * k10 + decomposed2 * k20 + decomposed3 * k30 + decomposed4 * k40;
+    var accumulator1 = decomposed0 * k01 + decomposed1 * k11 + decomposed2 * k21 + decomposed3 * k31 + decomposed4 * k41;
+
+    return [Rescale(accumulator0, P), Rescale(accumulator1, P)];
+}
+
+def main() {
+    initialize();
+    var ct_a0: MRP<u32, 65536, Q> = read_mrp_u32_Q("temp/ct_a/ct0.npz",Q);
+    var ct_a1: MRP<u32, 65536, Q> = read_mrp_u32_Q("temp/ct_a/ct1.npz",Q);
+
+    var ct_b0: MRP<u32, 65536, Q> = read_mrp_u32_Q("temp/ct_b/ct0.npz",Q);
+    var ct_b1: MRP<u32, 65536, Q> = read_mrp_u32_Q("temp/ct_b/ct1.npz",Q);
+
+    var prod0 = ct_a0 * ct_b0;
+    var prod1 = ct_a0 * ct_b1 + ct_a1 * ct_b0;
+    var prod2 = ct_a1 * ct_b1;
+
+    var relin_d0_0: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d0_0.npz",QP);
+    var relin_d0_1: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d0_1.npz",QP);
+    var relin_d1_0: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d1_0.npz",QP);
+    var relin_d1_1: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d1_1.npz",QP);
+    var relin_d2_0: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d2_0.npz",QP);
+    var relin_d2_1: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d2_1.npz",QP);
+    var relin_d3_0: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d3_0.npz",QP);
+    var relin_d3_1: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d3_1.npz",QP);
+    var relin_d4_0: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d4_0.npz",QP);
+    var relin_d4_1: MRP<u32, 65536, QP> = read_mrp_u32_Q("temp/keys/relin_d4_1.npz",QP);
+
+    var ks = KeySwitch(prod2, relin_d0_0, relin_d0_1, relin_d1_0, relin_d1_1, relin_d2_0, relin_d2_1, relin_d3_0, relin_d3_1, relin_d4_0, relin_d4_1);
+    var ct_res_0 = prod0 + get(ks, 0);
+    var ct_res_1 = prod1 + get(ks, 1);
+
+    var ct_res_0 = Rescale(ct_res_0,[0x7DBE0001]);
+    var ct_res_1 = Rescale(ct_res_1,[0x7DBE0001]);
+
+    write_mrp_u32(ct_res_0,"temp/ct_res/ct0.npz");
+    write_mrp_u32(ct_res_1,"temp/ct_res/ct1.npz");
+}

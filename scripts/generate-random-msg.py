@@ -10,7 +10,8 @@ def main():
     parser.add_argument("--name", type=str, default="MSG", help="Name of the message to be printed")
     args = parser.parse_args()
 
-    msg = np.random.randint(0, np.iinfo(np.int16).max, size=args.size).tolist()
+    msg = (np.random.uniform(0, 10, size=args.size) * 100).round() / 100
+    msg = msg.tolist()
 
     with open(args.output, "w") as f:
         json.dump(msg, f)

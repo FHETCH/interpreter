@@ -19,11 +19,22 @@ def main():
     expected = msg1 * msg2
 
     np.testing.assert_allclose(decrypted, expected, rtol=1e-3, atol=1e-3)
-    print("PASS: Decrypted result matches msg1 * msg2")
-    print(f"Message 1: [{', '.join(str(x) for x in msg1[:4])}...]")
-    print(f"Message 2: [{', '.join(str(x) for x in msg2[:4])}...]")
-    print(f"Expected: [{', '.join(str(x) for x in expected[:4])}...]")
-    print(f"Decrypted: [{', '.join(str(x) for x in decrypted[:4])}...]")
+    print("PASS: Decrypted result matches msg1 * msg2\n")
+    slots = range(4)
+    col_w = 14
+    rows = {
+        "Message 1":     [f"{msg1[i]:.4f}"       for i in slots],
+        "Message 2":     [f"{msg2[i]:.4f}"       for i in slots],
+        "Expected":  [f"{expected[i]:.6f}"   for i in slots],
+        "Decrypted": [f"{decrypted[i].real:.6f}" for i in slots],
+        "Error":     [f"{abs(decrypted[i].real - expected[i]):.2e}" for i in slots],
+    }
+    header = "  ".join(["".rjust(col_w)] + [f"Slot {i}".rjust(col_w) for i in slots])
+    print(header)
+    print("  ".join("-" * col_w for _ in range(len(slots) + 1)))
+    for label, values in rows.items():
+        print("  ".join([label.rjust(col_w)] + [v.rjust(col_w) for v in values]))
+    print()
 
 
 

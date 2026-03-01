@@ -1,5 +1,5 @@
 from sympy.ntheory import isprime
-
+from functools import cache
 import numpy as np
 
 
@@ -9,17 +9,6 @@ import numpy as np
 # NOTE: This implementation assumes the root of unity is set the first time an (i)NTT is called
 # for a given size and modulus. The same root is re-used for all subsequent (i)NTTs with the same
 # dimension and modulus.
-def _build_bit_reversal(n: int, b: int) -> np.ndarray:
-    """Return the bit-reversal permutation index array for length n = 2**b."""
-    idx = np.arange(n, dtype=np.int64)
-    rev = np.zeros(n, dtype=np.int64)
-    tmp = idx.copy()
-    for _ in range(b):
-        rev = (rev << 1) | (tmp & 1)
-        tmp >>= 1
-    return rev
-
-
 class _NbTheoryScratchpad:
 
     def __init__(self):
@@ -42,10 +31,8 @@ class _NbTheoryScratchpad:
             self.add_powers_rou(modulus, ring_dimension, rou=rou)
         return self.powers_rou[(modulus, ring_dimension)]
 
-    def get_bit_rev(self, n: int, b: int) -> np.ndarray:
-        if n not in self._bit_rev:
-            self._bit_rev[n] = _build_bit_reversal(n, b)
-        return self._bit_rev[n]
+
+
 
 
 _nb_theory_scratchpad = _NbTheoryScratchpad()
@@ -53,6 +40,16 @@ _nb_theory_scratchpad = _NbTheoryScratchpad()
 # Root of unity used for the NTT (if None, use the default from Sympy)
 ROOTS_UNITY = {}
 
+@cache
+def _build_bit_reversal(n: int, b: int) -> np.ndarray:
+    """Return the bit-reversal permutation index array for length n = 2**b."""
+    idx = np.arange(n, dtype=np.int64)
+    rev = np.zeros(n, dtype=np.int64)
+    tmp = idx.copy()
+    for _ in range(b):
+        rev = (rev << 1) | (tmp & 1)
+        tmp >>= 1
+    return rev
 
 def _number_theoretic_transform(seq, prime, rou, inverse=False):
     """Vectorized Number Theoretic Transform using NumPy.
@@ -81,7 +78,7 @@ def _number_theoretic_transform(seq, prime, rou, inverse=False):
         raise ValueError("Expected prime modulus of the form (m*2**k + 1)")
 
     # --- bit-reversal permutation (cached) -----------------------------------
-    rev = _nb_theory_scratchpad.get_bit_rev(n, b)
+    rev = _build_bit_reversal(n, b)
     a = a[rev]
 
     # --- twiddle factor table -------------------------------------------------

@@ -81,7 +81,7 @@ def builtin_intt(lhs: Vector, q: Scalar):
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
 
-def builtin_read_mrp_u32_1024_Q(path: str, Q: Vector):
+def builtin_read_mrp_u32_Q(path: str, Q: Vector):
     """Load a single MRP from disk for the Q modulus set.
 
     Args:
@@ -92,11 +92,10 @@ def builtin_read_mrp_u32_1024_Q(path: str, Q: Vector):
     """
     mrp = serialization.load_mrp(path)
     assert mrp.base() == set(x for x in Q.value)
-    #assert mrp.degree() == 1024
     return mrp
 
 
-def builtin_write_mrp_u32_1024_Q(mrp, path: str):
+def builtin_write_mrp(mrp, path: str):
     """Save a single MRP to disk for the Q modulus set.
 
     Args:
@@ -122,8 +121,8 @@ def builtin_rescale(mrp: MRP, moduli):
 def default_global():
     return {
         "write": builtin_write,
-        "read_mrp_u32_1024_Q": builtin_read_mrp_u32_1024_Q,
-        "write_mrp_u32_1024_Q": builtin_write_mrp_u32_1024_Q,
+        "read_mrp_u32_Q": builtin_read_mrp_u32_Q,
+        "write_mrp_u32": builtin_write_mrp,
         "print": builtin_print,
         "get": builtin_get,
         "sr_addp": builtin_add,

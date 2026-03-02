@@ -1,11 +1,15 @@
 #!/bin/bash
 set -e
 
+ENCODE_SCALE=$((1 << 31))
+
 # RING_DIM=65536
 # MSG_SIZE=32768
+# RESCALE=0x7DBE0001
 
 RING_DIM=1024
 MSG_SIZE=512
+RESCALE=0x7FF81001
 
 # Simulate the key_switch.fhetch program using CLI tools
 
@@ -48,7 +52,8 @@ step_end
 # Step 5: Decrypt the result
 echo "==> Decrypting result..."
 step_start
-uv run fhetch-decrypt params_${RING_DIM}.json temp/keys/sk.npy temp/ct_res -o temp/decrypted.npy
+DECRYPT_SCALE=$(( ENCODE_SCALE * ENCODE_SCALE / RESCALE ))
+uv run fhetch-decrypt params_${RING_DIM}.json temp/keys/sk.npy temp/ct_res --scale $DECRYPT_SCALE -o temp/decrypted.npy
 step_end
 
 # Step 6: Verify the result

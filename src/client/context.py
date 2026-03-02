@@ -11,8 +11,12 @@ class CryptoContext:
         self._params = params
         self._sk: Vector = sk
 
-    def encrypt_msg(self, msg: np.array) -> tuple[MRP, MRP]:
-        pt = encode(msg, self._params.scaling_factor(), self._params.q)
+    @property
+    def params(self):
+        return self._params
+
+    def encrypt_msg(self, msg: np.array, scale: float) -> tuple[MRP, MRP]:
+        pt = encode(msg, scale, self._params.q)
         return self.encrypt(pt)
 
     def encrypt(self, pt: MRP) -> tuple[MRP, MRP]:
@@ -26,18 +30,18 @@ class CryptoContext:
         b = pt - a * sk + gen_noise(pt_base, degree)
         return (b, a)
 
-    def decrypt_msg(self, cipher: tuple[MRP, MRP]) -> np.array:
+    def decrypt_msg(self, cipher: tuple[MRP, MRP], scale: float) -> np.array:
         b, a = cipher
         sk = MRP.from_coeffs(a.values.keys(), self._sk.value)
-        return decode(b + a * sk, self._params.scaling_factor())
+        return decode(b + a * sk, scale)
 
 
-def encode(msg: list[int], scale, base: list[int]) -> MRP:
+def encode(msg: list[int], scale: float, base: list[int]) -> MRP:
     coeffs = special_ifft(msg, scale)
     poly = MRP.from_coeffs(base, coeffs)
     return poly
 
 
-def decode(pt: MRP, scale: int) -> np.array:
+def decode(pt: MRP, scale: float) -> np.array:
     p = pt.reconstruct(exact=True,signed=True).value
     return special_fft(list(p), scale)

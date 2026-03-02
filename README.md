@@ -3,8 +3,8 @@
 Run the following:
 ```sh
 pipx install uv
-git clone github.com/FHETCH/march-demo.git
-cd march-demo
+git clone github.com/FHETCH/interpreter.git
+cd interpreter/
 uv run pytest tests/
 ```
 

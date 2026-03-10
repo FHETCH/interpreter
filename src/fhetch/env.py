@@ -117,6 +117,9 @@ def builtin_rescale(mrp: MRP, moduli):
     rescaled_q = mrp.divq(q)
     return rescaled_q
 
+def builtin_rotate(mrp: MRP, rotation:Scalar):
+    return mrp.automorph(rotation.value)
+
 
 def default_global():
     return {
@@ -133,4 +136,5 @@ def default_global():
         "sr_iNTT": builtin_intt,
         "BaseExtend": builtin_base_extend,
         "Rescale": builtin_rescale,
+        "Rotate": builtin_rotate,
     }

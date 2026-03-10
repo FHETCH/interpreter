@@ -103,7 +103,7 @@ def gen_rotation_key(sk:Vector,q: list[int], p: list[int],rot:int):
     sk_poly = MRP.from_coeffs(base=qp, coeffs=sk.value)
     rotated_sk_poly = MRP.from_coeffs(base=qp, coeffs=new_coeffs)
     # This is an encryption of the 'rotated' key under the 'original' key
-    rot_key = gen_ksk(sk_poly, rotated_sk_poly, q, p)
+    rot_key = gen_ksk(rotated_sk_poly, sk_poly, q, p)
     
     return rot_key
       
@@ -137,6 +137,7 @@ def main():
     # Generate secret key
     sk = gen_sk(params)
     relin_key = gen_relin_key(sk, params.q, params.p)
+    rot_by_1 = gen_rotation_key(sk, params.q, params.p,1)
     
     # Save to disk
     args.output.mkdir(parents=True, exist_ok=True)
@@ -145,6 +146,10 @@ def main():
     for i, (ksk_0, ksk_1) in enumerate(relin_key):
         save_mrp(ksk_0, args.output / f"relin_d{i}_0.npz")
         save_mrp(ksk_1, args.output / f"relin_d{i}_1.npz")
+        
+    for i, (ksk_0, ksk_1) in enumerate(rot_by_1):
+        save_mrp(ksk_0, args.output / f"rot_by_1_d{i}_0.npz")
+        save_mrp(ksk_1, args.output / f"rot_by_1_d{i}_1.npz")
 
     print(f"Secret key generated and saved to {args.output}")
     

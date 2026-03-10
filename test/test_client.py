@@ -39,6 +39,7 @@ Q = [
 
 P = [0x7FF80001, 0x7FF7B001, 0x7FF73801, 0x7FF6E001, 0x7FF6A801]
 
+SCALE = 2. ** 31
 
 FHETCH_PRIMES = """
     primes Digit0 = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801, 0x7FFE6001, 0x7FFE1801];
@@ -75,10 +76,10 @@ def test_encode_decode(ctx):
     msg = np.random.randint(0, np.iinfo(np.int16).max, size=ctx._params.slots)
 
     # Encrypt the message
-    pt = encode(msg, ctx._params.scaling_factor(), ctx._params.moduli)
+    pt = encode(msg, SCALE, ctx._params.moduli)
 
     # Decrypt the ciphertext
-    dec_msg = decode(pt,ctx._params.scaling_factor())
+    dec_msg = decode(pt, SCALE)
 
     # Check that the decrypted message matches the original
     # Use allclose for floating point comparison with tolerance
@@ -91,10 +92,10 @@ def test_encrypt_decrypt(ctx: CryptoContext):
     msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
     # Encrypt the message
-    ciphertext = ctx.encrypt_msg(msg)
+    ciphertext = ctx.encrypt_msg(msg, SCALE)
 
     # Decrypt the ciphertext
-    decrypted_msg = ctx.decrypt_msg(ciphertext)
+    decrypted_msg = ctx.decrypt_msg(ciphertext, SCALE)
 
     # Check that the decrypted message matches the original
     # Use allclose for floating point comparison with tolerance
@@ -104,7 +105,7 @@ def test_encrypt_decrypt(ctx: CryptoContext):
 def test_add(ctx: CryptoContext, tmp_path):
     msg = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
-    ciphertext = ctx.encrypt_msg(list(msg))
+    ciphertext = ctx.encrypt_msg(list(msg), SCALE)
 
     save_mrp(ciphertext[0], str(tmp_path / "ct_0.npz"))
     save_mrp(ciphertext[1], str(tmp_path / "ct_1.npz"))
@@ -128,7 +129,7 @@ def test_add(ctx: CryptoContext, tmp_path):
     eval_main(prog, global_env)
     ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
-    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1])
+    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
     np.testing.assert_allclose(decrypted_msg, msg + msg, rtol=1e-3, atol=1e-3)
 
 
@@ -136,8 +137,8 @@ def test_mult(ctx: CryptoContext, tmp_path):
     msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
     msg2 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
-    ct_a = ctx.encrypt_msg(list(msg1))
-    ct_b = ctx.encrypt_msg(list(msg2))
+    ct_a = ctx.encrypt_msg(list(msg1), SCALE)
+    ct_b = ctx.encrypt_msg(list(msg2), SCALE)
 
     save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
     save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
@@ -207,5 +208,5 @@ def test_mult(ctx: CryptoContext, tmp_path):
     eval_main(prog, global_env)
     ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
-    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1])
+    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
     np.testing.assert_allclose(decrypted_msg, msg1 * msg2, rtol=1e-3, atol=1e-3)

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from math import prod
 
 
 @dataclass
@@ -21,6 +20,3 @@ class Parameters:
     @property
     def slots(self):
         return 1 << self.log_slots
-
-    def scaling_factor(self):
-        return 2.0 ** self.q[0].bit_length()

@@ -16,6 +16,12 @@ def main():
     parser.add_argument("sk", type=Path, help="Path to secret key")
     parser.add_argument("msg", type=Path, help="Path to message (text file with numpy array)")
     parser.add_argument(
+        "--scale",
+        type=float,
+        default=None,
+        help="Scaling factor used during encoding (precision)",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         type=Path,
@@ -40,7 +46,8 @@ def main():
     assert len(sk) == 2 * len(msg)
     ctx = CryptoContext(params, Vector(sk))
 
-    ct = ctx.encrypt_msg(msg)
+    scale = args.scale if args.scale is not None else 2. ** ctx.params.q[-1].bit_length()
+    ct = ctx.encrypt_msg(msg, scale)
 
     # Save to disk using unified serialization
     args.output.mkdir(parents=True, exist_ok=True)

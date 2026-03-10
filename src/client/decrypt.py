@@ -20,6 +20,7 @@ def main():
         type=Path,
         help="Path to ciphertext directory (containing ct0.npz and ct1.npz)",
     )
+    parser.add_argument("--scale", type=float, help="Scaling factor to use during decoding")
     parser.add_argument(
         "-o",
         "--output",
@@ -47,7 +48,7 @@ def main():
     ct1 = serialization.load_mrp(args.ciphertext / "ct1.npz")
 
     # Decrypt
-    decrypted_msg = ctx.decrypt_msg([ct0, ct1])
+    decrypted_msg = ctx.decrypt_msg([ct0, ct1], args.scale)
 
     # Save to disk as text file with numpy array
     np.save(args.output, decrypted_msg)

@@ -138,7 +138,7 @@ class Vector:
         intt_arr = intt_arr * psi_powers[twist_idx] % q
         return Vector(intt_arr.astype(self.value.dtype))
     
-    def ntt_automorphism(self,g):
+    def automorph_eval(self,g):
         """
         Permutes coefficients already in the NTT domain.
         ntt_coeffs: 1D array of size N
@@ -261,9 +261,11 @@ class MRP:
 
         result = (original - to_sub).muls(q_inv)
         return result
+    
     def automorph(self, rot:int):
         degree = self.degree()
-        return MRP({q: self.values[q].ntt_automorphism(pow(5,rot,2*degree)) for q in self.base()})
+        exp = pow(5,rot,2*degree)
+        return MRP({q: self.values[q].automorph_eval(exp) for q in self.base()})
     
 
             

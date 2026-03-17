@@ -93,15 +93,9 @@ def gen_relin_key(sk: Vector, q: list[int], p: list[int]):
 
 def gen_rotation_key(sk:Vector,q: list[int], p: list[int],rot:int):
     qp = q + p
-    degree = len(sk.value)
-    # Calculate the exponent for the target key
-    # We want to create a key that matches the 'shifted' state
-    rot_exp = pow(5, degree // 2 - rot, 2 * degree)
-    # This creates the secret key as it will appear after a forward rotation
-    new_coeffs = negacyclic_automorphism(np.array(sk.value), rot_exp)
     # Convert to Polynomial format
     sk_poly = MRP.from_coeffs(base=qp, coeffs=sk.value)
-    rotated_sk_poly = MRP.from_coeffs(base=qp, coeffs=new_coeffs)
+    rotated_sk_poly = sk_poly.automorph(rot)
     # This is an encryption of the 'rotated' key under the 'original' key
     rot_key = gen_ksk(rotated_sk_poly, sk_poly, q, p)
     

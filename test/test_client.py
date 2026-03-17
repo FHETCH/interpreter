@@ -84,6 +84,8 @@ def test_encode_decode(ctx):
     # Check that the decrypted message matches the original
     # Use allclose for floating point comparison with tolerance
     np.testing.assert_allclose(dec_msg, msg, rtol=1e-3, atol=1e-3)
+    
+
 
 
 def test_encrypt_decrypt(ctx: CryptoContext):
@@ -260,6 +262,50 @@ def test_rot_1(ctx: CryptoContext, tmp_path):
         var rot_by_1_d3_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d3_1.npz",QP);
         var rot_by_1_d4_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d4_0.npz",QP);
         var rot_by_1_d4_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d4_1.npz",QP);
+        
+        var ks = KeySwitch(ct_a1_rot, rot_by_1_d0_0, rot_by_1_d0_1, rot_by_1_d1_0, rot_by_1_d1_1, rot_by_1_d2_0, rot_by_1_d2_1, rot_by_1_d3_0, rot_by_1_d3_1, rot_by_1_d4_0, rot_by_1_d4_1);
+        var ct_res_0 = ct_a0_rot + get(ks, 0);
+        var ct_res_1 = get(ks, 1);
+
+        write_mrp_u32(ct_res_0,"{tmp}/ct_res_0.npz");
+        write_mrp_u32(ct_res_1,"{tmp}/ct_res_1.npz");
+    }}
+    """
+    ).program
+    global_env = default_global()
+    global_env.update(eval_globals(prog))
+    eval_main(prog, global_env)
+    ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
+    ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
+    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
+    np.testing.assert_allclose(decrypted_msg, np.roll(msg1,1), rtol=1e-3, atol=1e-3)
+    
+    
+def test_rot_1_sr(ctx: CryptoContext, tmp_path):
+    tmp = tmp_path.as_posix()
+    msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+
+    ct_a = ctx.encrypt_msg(list(msg1), SCALE)
+
+    save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
+    save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
+
+    rot_by_1_key = gen_rotation_key(ctx._sk, Q, P,1)
+    # TODO: Move the save logic to serialization.py
+    for i, (ksk_0, ksk_1) in enumerate(rot_by_1_key):
+        save_mrp(ksk_0, str(tmp_path / f"rot_by_1_d{i}_0.npz"))
+        save_mrp(ksk_1, str(tmp_path / f"rot_by_1_d{i}_1.npz"))
+
+    prog = parser.Program.parse_string(
+        f"""
+    def main() {{
+        var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a0.npz",Q);
+        var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a1.npz",Q);
+
+        var ct_a0_rot = Rotate(ct_a0,1);
+        var ct_a1_rot = Rotate(ct_a1,1);
+
+        var rot_by_1_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_0.npz",QP);
         
         var ks = KeySwitch(ct_a1_rot, rot_by_1_d0_0, rot_by_1_d0_1, rot_by_1_d1_0, rot_by_1_d1_1, rot_by_1_d2_0, rot_by_1_d2_1, rot_by_1_d3_0, rot_by_1_d3_1, rot_by_1_d4_0, rot_by_1_d4_1);
         var ct_res_0 = ct_a0_rot + get(ks, 0);

@@ -60,3 +60,14 @@ def load_mrp(path: Union[str, Path]) -> MRP:
     
     return MRP(values)
 
+
+def save_ksk(ksk: list[tuple[MRP, MRP]], directory: Union[str, Path], prefix: str) -> None:
+    """Save a key-switching key (list of MRP pairs) to disk.
+
+    Each pair is saved as {prefix}_d{i}_0.npz and {prefix}_d{i}_1.npz.
+    """
+    directory = Path(directory)
+    for i, (ksk_0, ksk_1) in enumerate(ksk):
+        save_mrp(ksk_0, directory / f"{prefix}_d{i}_0.npz")
+        save_mrp(ksk_1, directory / f"{prefix}_d{i}_1.npz")
+

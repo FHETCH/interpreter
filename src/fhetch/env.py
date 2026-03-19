@@ -80,6 +80,12 @@ def builtin_intt(lhs: Vector, q: Scalar):
     assert isinstance(lhs, Vector)
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
+def builtin_automorph_eval(lhs: Vector, rot: Scalar):
+    assert isinstance(lhs, Vector)
+    degree = len(lhs.value)
+    exp = pow(5,rot.value,2*degree)
+    return lhs.automorph_eval(exp)
+
 
 def builtin_read_mrp_u32_Q(path: str, Q: Vector):
     """Load a single MRP from disk for the Q modulus set.
@@ -117,6 +123,23 @@ def builtin_rescale(mrp: MRP, moduli):
     rescaled_q = mrp.divq(q)
     return rescaled_q
 
+def builtin_rotate(mrp: MRP, rotation:Scalar):
+    return mrp.automorph(rotation.value)
+
+
+def builtin_get_limb(mrp: MRP, prime: Scalar):
+    return mrp.values[prime.value]
+
+
+def builtin_set_limb(mrp: MRP, prime: Scalar, vec: Vector):
+    new_values = dict(mrp.values)
+    new_values[prime.value] = vec
+    return MRP(new_values)
+
+
+def builtin_empty_mrp():
+    return MRP({})
+
 
 def default_global():
     return {
@@ -131,6 +154,11 @@ def default_global():
         "sr_set_rou": builtin_set_rou,
         "sr_NTT": builtin_ntt,
         "sr_iNTT": builtin_intt,
+        "sr_automorph_eval": builtin_automorph_eval,
         "BaseExtend": builtin_base_extend,
         "Rescale": builtin_rescale,
+        "Rotate": builtin_rotate,
+        "get_mrp_limb": builtin_get_limb,
+        "set_mrp_limb": builtin_set_limb,
+        "empty_mrp": builtin_empty_mrp,
     }

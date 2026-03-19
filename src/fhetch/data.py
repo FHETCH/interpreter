@@ -137,6 +137,27 @@ class Vector:
         twist_idx[1:] = 2 * n - twist_idx[1:]
         intt_arr = intt_arr * psi_powers[twist_idx] % q
         return Vector(intt_arr.astype(self.value.dtype))
+    
+    def automorph_eval(self,g):
+        """
+        Permutes coefficients already in the NTT domain.
+        ntt_coeffs: 1D array of size N
+        g: Galois element (e.g., 5^rot)
+        """
+        N = len(self.value)
+        new_ntt = np.zeros(N, dtype=self.value.dtype)
+        
+        for i in range(N):
+            # Map index to the odd power of the root of unity
+            old_exponent = 2 * i + 1
+            # Apply the automorphism mapping
+            new_exponent = (old_exponent * g) % (2 * N)
+            # Map back to the array index
+            new_index = (new_exponent - 1) // 2
+            
+            new_ntt[new_index] = self.value[i]
+            
+        return Vector(new_ntt) 
 
 
 @dataclass
@@ -240,5 +261,12 @@ class MRP:
 
         result = (original - to_sub).muls(q_inv)
         return result
+    
+    def automorph(self, rot:int):
+        degree = self.degree()
+        exp = pow(5,rot,2*degree)
+        return MRP({q: self.values[q].automorph_eval(exp) for q in self.base()})
+    
+
             
         

@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 from client.context import CryptoContext, Parameters, decode, encode
-from client.serialization import load_mrp, save_mrp
-from client.keygen import gen_relin_key, gen_sk
+from client.serialization import load_mrp, save_mrp, save_ksk
+from client.keygen import gen_relin_key, gen_sk, gen_rotation_key
 from client.utils import find_psi
 from fhetch import parser
 from fhetch.env import default_global
@@ -84,6 +84,8 @@ def test_encode_decode(ctx):
     # Check that the decrypted message matches the original
     # Use allclose for floating point comparison with tolerance
     np.testing.assert_allclose(dec_msg, msg, rtol=1e-3, atol=1e-3)
+    
+
 
 
 def test_encrypt_decrypt(ctx: CryptoContext):
@@ -148,9 +150,7 @@ def test_mult(ctx: CryptoContext, tmp_path):
 
     relin_key = gen_relin_key(ctx._sk, Q, P)
 
-    for i, (ksk_0, ksk_1) in enumerate(relin_key):
-        save_mrp(ksk_0, str(tmp_path / f"relin_d{i}_0.npz"))
-        save_mrp(ksk_1, str(tmp_path / f"relin_d{i}_1.npz"))
+    save_ksk(relin_key, tmp_path, "relin")
 
     tmp = tmp_path.as_posix()
     prog = parser.Program.parse_string(
@@ -210,3 +210,159 @@ def test_mult(ctx: CryptoContext, tmp_path):
     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
     decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
     np.testing.assert_allclose(decrypted_msg, msg1 * msg2, rtol=1e-3, atol=1e-3)
+    
+    
+def test_rot_1(ctx: CryptoContext, tmp_path):
+    tmp = tmp_path.as_posix()
+    msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+
+    ct_a = ctx.encrypt_msg(list(msg1), SCALE)
+
+    save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
+    save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
+
+    rot_by_1_key = gen_rotation_key(ctx._sk, Q, P,1)
+    save_ksk(rot_by_1_key, tmp_path, "rot_by_1")
+
+    prog = parser.Program.parse_string(
+        f"""
+    {FHETCH_PRIMES}
+    def KeySwitch(poly: MRP<u32, 1024, Q>, k00, k01, k10, k11, k20, k21, k30, k31, k40, k41) {{ 
+        var decomposed0 = BaseExtend(poly, Digit0, QP);
+        var decomposed1 = BaseExtend(poly, Digit1, QP);
+        var decomposed2 = BaseExtend(poly, Digit2, QP);
+        var decomposed3 = BaseExtend(poly, Digit3, QP);
+        var decomposed4 = BaseExtend(poly, Digit4, QP);
+
+        var accumulator0 = decomposed0 * k00 + decomposed1 * k10 + decomposed2 * k20 + decomposed3 * k30 + decomposed4 * k40;
+        var accumulator1 = decomposed0 * k01 + decomposed1 * k11 + decomposed2 * k21 + decomposed3 * k31 + decomposed4 * k41;
+
+        return [Rescale(accumulator0, P), Rescale(accumulator1, P)];
+    }}
+
+    def main() {{
+        var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a0.npz",Q);
+        var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a1.npz",Q);
+
+        var ct_a0_rot = Rotate(ct_a0,1);
+        var ct_a1_rot = Rotate(ct_a1,1);
+
+        var rot_by_1_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_0.npz",QP);
+        var rot_by_1_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_1.npz",QP);
+        var rot_by_1_d1_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d1_0.npz",QP);
+        var rot_by_1_d1_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d1_1.npz",QP);
+        var rot_by_1_d2_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d2_0.npz",QP);
+        var rot_by_1_d2_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d2_1.npz",QP);
+        var rot_by_1_d3_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d3_0.npz",QP);
+        var rot_by_1_d3_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d3_1.npz",QP);
+        var rot_by_1_d4_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d4_0.npz",QP);
+        var rot_by_1_d4_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d4_1.npz",QP);
+        
+        var ks = KeySwitch(ct_a1_rot, rot_by_1_d0_0, rot_by_1_d0_1, rot_by_1_d1_0, rot_by_1_d1_1, rot_by_1_d2_0, rot_by_1_d2_1, rot_by_1_d3_0, rot_by_1_d3_1, rot_by_1_d4_0, rot_by_1_d4_1);
+        var ct_res_0 = ct_a0_rot + get(ks, 0);
+        var ct_res_1 = get(ks, 1);
+
+        write_mrp_u32(ct_res_0,"{tmp}/ct_res_0.npz");
+        write_mrp_u32(ct_res_1,"{tmp}/ct_res_1.npz");
+    }}
+    """
+    ).program
+    global_env = default_global()
+    global_env.update(eval_globals(prog))
+    eval_main(prog, global_env)
+    ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
+    ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
+    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
+    np.testing.assert_allclose(decrypted_msg, np.roll(msg1,1), rtol=1e-3, atol=1e-3)
+      
+def test_rot_1_sr(tmp_path):
+    Q_SMALL = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801]
+    P_SMALL = [0x7FF80001, 0x7FF7B001, 0x7FF73801]
+
+    SMALL_PARAMETERS = Parameters(
+        q=Q_SMALL,
+        p=P_SMALL,
+        log_n=10,
+        log_slots=9,
+    )
+    sk = gen_sk(SMALL_PARAMETERS)
+    ctx_small = CryptoContext(params=SMALL_PARAMETERS, sk=sk)
+    tmp = tmp_path.as_posix()
+    msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+
+    ct_a = ctx_small.encrypt_msg(list(msg1), SCALE)
+
+    save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
+    save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
+
+    rot_by_1_key = gen_rotation_key(ctx_small._sk, Q_SMALL, P_SMALL, 1)
+    save_ksk(rot_by_1_key, tmp_path, "rot_by_1")
+
+    prog = parser.Program.parse_string(
+        f"""
+    primes Digit0 = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801];
+    primes Q = Digit0;
+    primes P = [0x7FF80001, 0x7FF7B001, 0x7FF73801];
+    primes QP = Q||P;
+    
+    def KeySwitch(poly: MRP<u32, 1024, Q>, k0, k1) {{
+        var decomposed0 = BaseExtend(poly, Digit0, QP);
+        var accumulator0 = decomposed0 * k0;
+        var accumulator1 = decomposed0 * k1;
+        return [Rescale(accumulator0, P), Rescale(accumulator1, P)];
+    }}
+
+    def main() {{
+        var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a0.npz", Q);
+        var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a1.npz", Q);
+
+        // Extract limbs from ct_a0
+        var ct0_q0 = get_mrp_limb(ct_a0, 0x7FFFD801);
+        var ct0_q1 = get_mrp_limb(ct_a0, 0x7FFE9001);
+        var ct0_q2 = get_mrp_limb(ct_a0, 0x7FFE8801);
+
+        // Extract limbs from ct_a1
+        var ct1_q0 = get_mrp_limb(ct_a1, 0x7FFFD801);
+        var ct1_q1 = get_mrp_limb(ct_a1, 0x7FFE9001);
+        var ct1_q2 = get_mrp_limb(ct_a1, 0x7FFE8801);
+
+        // Automorphism per limb
+        var ct0_q0_rot = sr_automorph_eval(ct0_q0, 1);
+        var ct0_q1_rot = sr_automorph_eval(ct0_q1, 1);
+        var ct0_q2_rot = sr_automorph_eval(ct0_q2, 1);
+
+        var ct1_q0_rot = sr_automorph_eval(ct1_q0, 1);
+        var ct1_q1_rot = sr_automorph_eval(ct1_q1, 1);
+        var ct1_q2_rot = sr_automorph_eval(ct1_q2, 1);
+
+        // Pack back into MRPs
+        var ct_a0_rot = empty_mrp();
+        var ct_a0_rot = set_mrp_limb(ct_a0_rot, 0x7FFFD801, ct0_q0_rot);
+        var ct_a0_rot = set_mrp_limb(ct_a0_rot, 0x7FFE9001, ct0_q1_rot);
+        var ct_a0_rot = set_mrp_limb(ct_a0_rot, 0x7FFE8801, ct0_q2_rot);
+
+        var ct_a1_rot = empty_mrp();
+        var ct_a1_rot = set_mrp_limb(ct_a1_rot, 0x7FFFD801, ct1_q0_rot);
+        var ct_a1_rot = set_mrp_limb(ct_a1_rot, 0x7FFE9001, ct1_q1_rot);
+        var ct_a1_rot = set_mrp_limb(ct_a1_rot, 0x7FFE8801, ct1_q2_rot);
+
+        // KeySwitch (1 digit → 1 KSK pair)
+        var ksk_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_0.npz", QP);
+        var ksk_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_1.npz", QP);
+
+        var ks = KeySwitch(ct_a1_rot, ksk_d0_0, ksk_d0_1);
+        var ct_res_0 = ct_a0_rot + get(ks, 0);
+        var ct_res_1 = get(ks, 1);
+
+        write_mrp_u32(ct_res_0, "{tmp}/ct_res_0.npz");
+        write_mrp_u32(ct_res_1, "{tmp}/ct_res_1.npz");
+    }}
+    """
+    ).program
+    global_env = default_global()
+    global_env.update(eval_globals(prog))
+    eval_main(prog, global_env)
+    ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
+    ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
+    decrypted_msg = ctx_small.decrypt_msg([ct_res_0, ct_res_1], SCALE)
+    np.testing.assert_allclose(decrypted_msg, np.roll(msg1, 1), rtol=1e-3, atol=1e-3)

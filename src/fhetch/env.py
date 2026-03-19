@@ -140,7 +140,7 @@ def default_global():
         "sr_set_rou": builtin_set_rou,
         "sr_NTT": builtin_ntt,
         "sr_iNTT": builtin_intt,
-        "sr_automorph_eval": builtin_intt,
+        "sr_automorph_eval": builtin_automorph_eval,
         "BaseExtend": builtin_base_extend,
         "Rescale": builtin_rescale,
         "Rotate": builtin_rotate,

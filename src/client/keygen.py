@@ -6,7 +6,7 @@ from random import randint, shuffle
 import numpy as np
 
 from client.crypto import Parameters
-from client.serialization import save_mrp
+from client.serialization import save_mrp, save_ksk
 from client.utils import find_psi, random_poly
 from fhetch.data import MRP, Vector
 from fhetch.ntt import ROOTS_UNITY
@@ -137,13 +137,8 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     np.save(args.output / "sk.npy", sk.value)
 
-    for i, (ksk_0, ksk_1) in enumerate(relin_key):
-        save_mrp(ksk_0, args.output / f"relin_d{i}_0.npz")
-        save_mrp(ksk_1, args.output / f"relin_d{i}_1.npz")
-        
-    for i, (ksk_0, ksk_1) in enumerate(rot_by_1):
-        save_mrp(ksk_0, args.output / f"rot_by_1_d{i}_0.npz")
-        save_mrp(ksk_1, args.output / f"rot_by_1_d{i}_1.npz")
+    save_ksk(relin_key, args.output, "relin")
+    save_ksk(rot_by_1, args.output, "rot_by_1")
 
     print(f"Secret key generated and saved to {args.output}")
     

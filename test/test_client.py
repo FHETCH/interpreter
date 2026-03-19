@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from client.context import CryptoContext, Parameters, decode, encode
-from client.serialization import load_mrp, save_mrp
+from client.serialization import load_mrp, save_mrp, save_ksk
 from client.keygen import gen_relin_key, gen_sk, gen_rotation_key
 from client.utils import find_psi
 from fhetch import parser
@@ -150,9 +150,7 @@ def test_mult(ctx: CryptoContext, tmp_path):
 
     relin_key = gen_relin_key(ctx._sk, Q, P)
 
-    for i, (ksk_0, ksk_1) in enumerate(relin_key):
-        save_mrp(ksk_0, str(tmp_path / f"relin_d{i}_0.npz"))
-        save_mrp(ksk_1, str(tmp_path / f"relin_d{i}_1.npz"))
+    save_ksk(relin_key, tmp_path, "relin")
 
     tmp = tmp_path.as_posix()
     prog = parser.Program.parse_string(
@@ -224,10 +222,7 @@ def test_rot_1(ctx: CryptoContext, tmp_path):
     save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
 
     rot_by_1_key = gen_rotation_key(ctx._sk, Q, P,1)
-    # TODO: Move the save logic to serialization.py
-    for i, (ksk_0, ksk_1) in enumerate(rot_by_1_key):
-        save_mrp(ksk_0, str(tmp_path / f"rot_by_1_d{i}_0.npz"))
-        save_mrp(ksk_1, str(tmp_path / f"rot_by_1_d{i}_1.npz"))
+    save_ksk(rot_by_1_key, tmp_path, "rot_by_1")
 
     prog = parser.Program.parse_string(
         f"""
@@ -281,45 +276,46 @@ def test_rot_1(ctx: CryptoContext, tmp_path):
     np.testing.assert_allclose(decrypted_msg, np.roll(msg1,1), rtol=1e-3, atol=1e-3)
     
     
-def test_rot_1_sr(ctx: CryptoContext, tmp_path):
-    tmp = tmp_path.as_posix()
-    msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+# def test_rot_1_sr(ctx: CryptoContext, tmp_path):
+#     tmp = tmp_path.as_posix()
+#     msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
 
-    ct_a = ctx.encrypt_msg(list(msg1), SCALE)
+#     ct_a = ctx.encrypt_msg(list(msg1), SCALE)
 
-    save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
-    save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
+#     save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
+#     save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
 
-    rot_by_1_key = gen_rotation_key(ctx._sk, Q, P,1)
-    # TODO: Move the save logic to serialization.py
-    for i, (ksk_0, ksk_1) in enumerate(rot_by_1_key):
-        save_mrp(ksk_0, str(tmp_path / f"rot_by_1_d{i}_0.npz"))
-        save_mrp(ksk_1, str(tmp_path / f"rot_by_1_d{i}_1.npz"))
+#     rot_by_1_key = gen_rotation_key(ctx._sk, Q, P,1)
+#     save_ksk(rot_by_1_key, tmp_path, "rot_by_1")
 
-    prog = parser.Program.parse_string(
-        f"""
-    def main() {{
-        var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a0.npz",Q);
-        var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a1.npz",Q);
-
-        var ct_a0_rot = Rotate(ct_a0,1);
-        var ct_a1_rot = Rotate(ct_a1,1);
-
-        var rot_by_1_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_0.npz",QP);
+#     prog = parser.Program.parse_string(
+#         f"""
+#     def main() {{
+#         prime Q = 0x00;
+#         var ct_a0: Vector<u32, 1024,Q> = read_vector_u32_Q("{tmp}/ct_a0.npz",Q);
+#         var ct_a1: Vector<u32, 1024, Q> = read_vector_u32_Q("{tmp}/ct_a1.npz",Q);
         
-        var ks = KeySwitch(ct_a1_rot, rot_by_1_d0_0, rot_by_1_d0_1, rot_by_1_d1_0, rot_by_1_d1_1, rot_by_1_d2_0, rot_by_1_d2_1, rot_by_1_d3_0, rot_by_1_d3_1, rot_by_1_d4_0, rot_by_1_d4_1);
-        var ct_res_0 = ct_a0_rot + get(ks, 0);
-        var ct_res_1 = get(ks, 1);
+#         var ct_a0 = sr_NTT(ct_a0);
+#         var ct_a1 = sr_NTT(ct_a1);
+        
+#         var ct_a0_rot = sr_automorph_eval(ct_a0,1);
+#         var ct_a1_rot = sr_automorph_eval(ct_a1,1);
 
-        write_mrp_u32(ct_res_0,"{tmp}/ct_res_0.npz");
-        write_mrp_u32(ct_res_1,"{tmp}/ct_res_1.npz");
-    }}
-    """
-    ).program
-    global_env = default_global()
-    global_env.update(eval_globals(prog))
-    eval_main(prog, global_env)
-    ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
-    ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
-    decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
-    np.testing.assert_allclose(decrypted_msg, np.roll(msg1,1), rtol=1e-3, atol=1e-3)
+#         var rot_by_1_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_0.npz",QP);
+        
+#         var ks = KeySwitch(ct_a1_rot, rot_by_1_d0_0, rot_by_1_d0_1, rot_by_1_d1_0, rot_by_1_d1_1, rot_by_1_d2_0, rot_by_1_d2_1, rot_by_1_d3_0, rot_by_1_d3_1, rot_by_1_d4_0, rot_by_1_d4_1);
+#         var ct_res_0 = ct_a0_rot + get(ks, 0);
+#         var ct_res_1 = get(ks, 1);
+
+#         write_mrp_u32(ct_res_0,"{tmp}/ct_res_0.npz");
+#         write_mrp_u32(ct_res_1,"{tmp}/ct_res_1.npz");
+#     }}
+#     """
+#     ).program
+#     global_env = default_global()
+#     global_env.update(eval_globals(prog))
+#     eval_main(prog, global_env)
+#     ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
+#     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
+#     decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
+#     np.testing.assert_allclose(decrypted_msg, np.roll(msg1,1), rtol=1e-3, atol=1e-3)

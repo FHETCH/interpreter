@@ -80,6 +80,12 @@ def builtin_intt(lhs: Vector, q: Scalar):
     assert isinstance(lhs, Vector)
     return lhs.inverse_ntt(q, rou=ROOTS_UNITY.get((len(lhs.value), q.value)))
 
+def builtin_automorph_eval(lhs: Vector, rot: Scalar):
+    assert isinstance(lhs, Vector)
+    degree = len(lhs.value)
+    exp = pow(5,rot,2*degree)
+    return lhs.automorph_eval(exp)
+
 
 def builtin_read_mrp_u32_Q(path: str, Q: Vector):
     """Load a single MRP from disk for the Q modulus set.
@@ -134,6 +140,7 @@ def default_global():
         "sr_set_rou": builtin_set_rou,
         "sr_NTT": builtin_ntt,
         "sr_iNTT": builtin_intt,
+        "sr_automorph_eval": builtin_intt,
         "BaseExtend": builtin_base_extend,
         "Rescale": builtin_rescale,
         "Rotate": builtin_rotate,

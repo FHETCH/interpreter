@@ -21,28 +21,6 @@ def gen_noise(moduli: list[int], degree: int, sigma=3.2):
         coeffs.extend(int(x) for x in sample[good_idxs])
     return MRP.from_coeffs(moduli, coeffs)
 
-def negacyclic_automorphism(coeffs, g):
-    """
-    Applies the automorphism x -> x^g to a polynomial in Z[x]/(x^N + 1).
-    coeffs: list or np.array of coefficients of length N
-    g: the Galois element (e.g., pow(5, rot, 2*N))
-    """
-    N = len(coeffs)
-    new_coeffs = np.zeros(N, dtype=coeffs.dtype)
-    
-    for i in range(N):
-        # Calculate the new exponent: (original_exponent * g) % (2 * N)
-        target_exp = (i * g) % (2 * N)
-        
-        if target_exp < N:
-            # Standard position
-            new_coeffs[target_exp] = coeffs[i]
-        else:
-            # Negacyclic wrap-around: x^N = -1, so x^(N+k) = -x^k
-            new_coeffs[target_exp - N] = -coeffs[i]
-            
-    return new_coeffs
-
 def gen_sk(params:Parameters)->Vector:
     hw = params.h
     degree = params.degree

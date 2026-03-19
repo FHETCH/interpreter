@@ -83,7 +83,7 @@ def builtin_intt(lhs: Vector, q: Scalar):
 def builtin_automorph_eval(lhs: Vector, rot: Scalar):
     assert isinstance(lhs, Vector)
     degree = len(lhs.value)
-    exp = pow(5,rot,2*degree)
+    exp = pow(5,rot.value,2*degree)
     return lhs.automorph_eval(exp)
 
 
@@ -127,6 +127,20 @@ def builtin_rotate(mrp: MRP, rotation:Scalar):
     return mrp.automorph(rotation.value)
 
 
+def builtin_get_limb(mrp: MRP, prime: Scalar):
+    return mrp.values[prime.value]
+
+
+def builtin_set_limb(mrp: MRP, prime: Scalar, vec: Vector):
+    new_values = dict(mrp.values)
+    new_values[prime.value] = vec
+    return MRP(new_values)
+
+
+def builtin_empty_mrp():
+    return MRP({})
+
+
 def default_global():
     return {
         "write": builtin_write,
@@ -144,4 +158,7 @@ def default_global():
         "BaseExtend": builtin_base_extend,
         "Rescale": builtin_rescale,
         "Rotate": builtin_rotate,
+        "get_mrp_limb": builtin_get_limb,
+        "set_mrp_limb": builtin_set_limb,
+        "empty_mrp": builtin_empty_mrp,
     }

@@ -274,48 +274,95 @@ def test_rot_1(ctx: CryptoContext, tmp_path):
     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
     decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
     np.testing.assert_allclose(decrypted_msg, np.roll(msg1,1), rtol=1e-3, atol=1e-3)
+      
+def test_rot_1_sr(tmp_path):
+    Q_SMALL = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801]
+    P_SMALL = [0x7FF80001, 0x7FF7B001, 0x7FF73801]
+
+    SMALL_PARAMETERS = Parameters(
+        q=Q_SMALL,
+        p=P_SMALL,
+        log_n=10,
+        log_slots=9,
+    )
+    sk = gen_sk(SMALL_PARAMETERS)
+    ctx_small = CryptoContext(params=SMALL_PARAMETERS, sk=sk)
+    tmp = tmp_path.as_posix()
+    msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+
+    ct_a = ctx_small.encrypt_msg(list(msg1), SCALE)
+
+    save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
+    save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
+
+    rot_by_1_key = gen_rotation_key(ctx_small._sk, Q_SMALL, P_SMALL, 1)
+    save_ksk(rot_by_1_key, tmp_path, "rot_by_1")
+
+    prog = parser.Program.parse_string(
+        f"""
+    primes Digit0 = [0x7FFFD801, 0x7FFE9001, 0x7FFE8801];
+    primes Q = Digit0;
+    primes P = [0x7FF80001, 0x7FF7B001, 0x7FF73801];
+    primes QP = Q||P;
     
-    
-# def test_rot_1_sr(ctx: CryptoContext, tmp_path):
-#     tmp = tmp_path.as_posix()
-#     msg1 = np.random.randint(0, np.iinfo(np.int16).max, size=512)
+    def KeySwitch(poly: MRP<u32, 1024, Q>, k0, k1) {{
+        var decomposed0 = BaseExtend(poly, Digit0, QP);
+        var accumulator0 = decomposed0 * k0;
+        var accumulator1 = decomposed0 * k1;
+        return [Rescale(accumulator0, P), Rescale(accumulator1, P)];
+    }}
 
-#     ct_a = ctx.encrypt_msg(list(msg1), SCALE)
+    def main() {{
+        var ct_a0: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a0.npz", Q);
+        var ct_a1: MRP<u32, 1024, Q> = read_mrp_u32_Q("{tmp}/ct_a1.npz", Q);
 
-#     save_mrp(ct_a[0], str(tmp_path / "ct_a0.npz"))
-#     save_mrp(ct_a[1], str(tmp_path / "ct_a1.npz"))
+        // Extract limbs from ct_a0
+        var ct0_q0 = get_mrp_limb(ct_a0, 0x7FFFD801);
+        var ct0_q1 = get_mrp_limb(ct_a0, 0x7FFE9001);
+        var ct0_q2 = get_mrp_limb(ct_a0, 0x7FFE8801);
 
-#     rot_by_1_key = gen_rotation_key(ctx._sk, Q, P,1)
-#     save_ksk(rot_by_1_key, tmp_path, "rot_by_1")
+        // Extract limbs from ct_a1
+        var ct1_q0 = get_mrp_limb(ct_a1, 0x7FFFD801);
+        var ct1_q1 = get_mrp_limb(ct_a1, 0x7FFE9001);
+        var ct1_q2 = get_mrp_limb(ct_a1, 0x7FFE8801);
 
-#     prog = parser.Program.parse_string(
-#         f"""
-#     def main() {{
-#         prime Q = 0x00;
-#         var ct_a0: Vector<u32, 1024,Q> = read_vector_u32_Q("{tmp}/ct_a0.npz",Q);
-#         var ct_a1: Vector<u32, 1024, Q> = read_vector_u32_Q("{tmp}/ct_a1.npz",Q);
-        
-#         var ct_a0 = sr_NTT(ct_a0);
-#         var ct_a1 = sr_NTT(ct_a1);
-        
-#         var ct_a0_rot = sr_automorph_eval(ct_a0,1);
-#         var ct_a1_rot = sr_automorph_eval(ct_a1,1);
+        // Automorphism per limb
+        var ct0_q0_rot = sr_automorph_eval(ct0_q0, 1);
+        var ct0_q1_rot = sr_automorph_eval(ct0_q1, 1);
+        var ct0_q2_rot = sr_automorph_eval(ct0_q2, 1);
 
-#         var rot_by_1_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_0.npz",QP);
-        
-#         var ks = KeySwitch(ct_a1_rot, rot_by_1_d0_0, rot_by_1_d0_1, rot_by_1_d1_0, rot_by_1_d1_1, rot_by_1_d2_0, rot_by_1_d2_1, rot_by_1_d3_0, rot_by_1_d3_1, rot_by_1_d4_0, rot_by_1_d4_1);
-#         var ct_res_0 = ct_a0_rot + get(ks, 0);
-#         var ct_res_1 = get(ks, 1);
+        var ct1_q0_rot = sr_automorph_eval(ct1_q0, 1);
+        var ct1_q1_rot = sr_automorph_eval(ct1_q1, 1);
+        var ct1_q2_rot = sr_automorph_eval(ct1_q2, 1);
 
-#         write_mrp_u32(ct_res_0,"{tmp}/ct_res_0.npz");
-#         write_mrp_u32(ct_res_1,"{tmp}/ct_res_1.npz");
-#     }}
-#     """
-#     ).program
-#     global_env = default_global()
-#     global_env.update(eval_globals(prog))
-#     eval_main(prog, global_env)
-#     ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
-#     ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
-#     decrypted_msg = ctx.decrypt_msg([ct_res_0, ct_res_1], SCALE)
-#     np.testing.assert_allclose(decrypted_msg, np.roll(msg1,1), rtol=1e-3, atol=1e-3)
+        // Pack back into MRPs
+        var ct_a0_rot = empty_mrp();
+        var ct_a0_rot = set_mrp_limb(ct_a0_rot, 0x7FFFD801, ct0_q0_rot);
+        var ct_a0_rot = set_mrp_limb(ct_a0_rot, 0x7FFE9001, ct0_q1_rot);
+        var ct_a0_rot = set_mrp_limb(ct_a0_rot, 0x7FFE8801, ct0_q2_rot);
+
+        var ct_a1_rot = empty_mrp();
+        var ct_a1_rot = set_mrp_limb(ct_a1_rot, 0x7FFFD801, ct1_q0_rot);
+        var ct_a1_rot = set_mrp_limb(ct_a1_rot, 0x7FFE9001, ct1_q1_rot);
+        var ct_a1_rot = set_mrp_limb(ct_a1_rot, 0x7FFE8801, ct1_q2_rot);
+
+        // KeySwitch (1 digit → 1 KSK pair)
+        var ksk_d0_0: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_0.npz", QP);
+        var ksk_d0_1: MRP<u32, 1024, QP> = read_mrp_u32_Q("{tmp}/rot_by_1_d0_1.npz", QP);
+
+        var ks = KeySwitch(ct_a1_rot, ksk_d0_0, ksk_d0_1);
+        var ct_res_0 = ct_a0_rot + get(ks, 0);
+        var ct_res_1 = get(ks, 1);
+
+        write_mrp_u32(ct_res_0, "{tmp}/ct_res_0.npz");
+        write_mrp_u32(ct_res_1, "{tmp}/ct_res_1.npz");
+    }}
+    """
+    ).program
+    global_env = default_global()
+    global_env.update(eval_globals(prog))
+    eval_main(prog, global_env)
+    ct_res_0 = load_mrp(str(tmp_path / "ct_res_0.npz"))
+    ct_res_1 = load_mrp(str(tmp_path / "ct_res_1.npz"))
+    decrypted_msg = ctx_small.decrypt_msg([ct_res_0, ct_res_1], SCALE)
+    np.testing.assert_allclose(decrypted_msg, np.roll(msg1, 1), rtol=1e-3, atol=1e-3)
